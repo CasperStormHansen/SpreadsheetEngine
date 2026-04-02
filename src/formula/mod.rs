@@ -7,21 +7,24 @@ use crate::formula::parsing_error::ParsingError;
 use crate::spreadsheet::Spreadsheet;
 
 pub(crate) trait Formula {
+    fn evaluate(&self, spreadsheet: &Spreadsheet) -> CellValue;
+    fn get_child_regions(&self) -> HashSet<CellRegion>;
+}
+
+trait ProperFormula : Formula {
     fn try_parse(input: &str) -> Option<Self>
     where
         Self: Sized;
-    fn get_child_regions(&self) -> HashSet<CellRegion>;
-    fn evaluate(&self, spreadsheet: &Spreadsheet) -> CellValue;
 }
 
 macro_rules! try_parse_in_order {
-    ($raw_formula:expr, $($ty:ty),+) => {{
+    ($raw_formula:expr, $($ty:ty),+ $(,)?) => {{
         $(
             if let Some(formula) = <$ty>::try_parse($raw_formula) {
                 return Box::new(formula);
             }
         )+
-        panic!("The last type of formula must be ParsingError, which always succeeds.")
+        Box::new(ParsingError::new($raw_formula))
     }};
 }
 
@@ -29,7 +32,7 @@ pub(crate) fn parse(raw_formula: &str) -> Box<dyn Formula> {
     try_parse_in_order!(raw_formula, 
         NumberLiteral, 
         CellReference, 
-        ParsingError)
+    )
 }
 
 mod number_literal;

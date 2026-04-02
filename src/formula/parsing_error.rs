@@ -9,15 +9,17 @@ pub(crate) struct ParsingError {
 }
 
 impl Formula for ParsingError {
-    fn try_parse(input: &str) -> Option<Self> {
-        Some(Self {error_message: input.to_string()}) // Todo: needs improvement
+    fn evaluate(&self, _spreadsheet: &Spreadsheet) -> CellValue {
+        CellValue::Error(self.error_message.clone())
     }
 
     fn get_child_regions(&self) -> HashSet<CellRegion> {
         HashSet::new()
     }
+}
 
-    fn evaluate(&self, _spreadsheet: &Spreadsheet) -> CellValue {
-        CellValue::Error(self.error_message.clone())
+impl ParsingError {
+    pub(crate) fn new(error_message: &str) -> Self {
+        Self {error_message: error_message.to_string()} // Todo: needs improvement
     }
 }
