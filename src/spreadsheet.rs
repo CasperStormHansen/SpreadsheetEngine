@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use crate::cell::Cell;
 use crate::cell_address::CellAddress;
+use crate::cell_value::CellValue;
 use crate::cell_value::CellValue::Unevaluated;
 
 pub struct Spreadsheet {
@@ -12,6 +13,10 @@ impl Spreadsheet {
         Self {
             cells: HashMap::new(),
         }
+    }
+
+    pub fn cell_value(&self, cell_address: CellAddress) -> Option<&CellValue> {
+        self.cells.get(&cell_address).map(|cell| &cell.value)
     }
 
     pub fn input_raw_formula(&mut self, cell_address: CellAddress, raw_formula: &str) {
