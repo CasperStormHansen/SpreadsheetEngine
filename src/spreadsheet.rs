@@ -47,11 +47,11 @@ impl Spreadsheet {
         self.evaluate(evaluation_queue);
     }
 
-    fn get_cell_update_type(&mut self, cell_address: CellAddress, raw_formula: &str) -> CellUpdateType {
+    fn get_cell_update_type(& self, cell_address: CellAddress, raw_formula: &str) -> CellUpdateType {
         let raw_formula_has_content = !raw_formula.trim().is_empty();
-        let exists = self.cells.contains_key(&cell_address);
+        let cell_already_exists = self.cells.contains_key(&cell_address);
 
-        match (raw_formula_has_content, exists) {
+        match (raw_formula_has_content, cell_already_exists) {
             (true, false) => CellUpdateType::Create,
             (true, true) => CellUpdateType::Modify,
             (false, true) => CellUpdateType::Delete,
@@ -87,12 +87,12 @@ impl Spreadsheet {
     fn attach_to_children(&mut self, address: CellAddress) {
         let child_addresses: Vec<CellAddress> = self.cells[&address]
             .child_regions.iter().flat_map(|child_region| {
-            self.cells.iter()
-                .filter(|(potential_child_address, _)| {
-                    child_region.contains(&potential_child_address)
-                })
-                .map(|(&potential_child_address, _)| potential_child_address)
-        })
+                self.cells.iter()
+                    .filter(|(potential_child_address, _)| {
+                        child_region.contains(&potential_child_address)
+                    })
+                    .map(|(&potential_child_address, _)| potential_child_address)
+            })
             .collect();
 
         for child_address in child_addresses {
