@@ -28,6 +28,7 @@ impl Spreadsheet {
                 evaluation_queue = self.get_cell_if_no_unevaluated_children(cell_address);
             },
             CellUpdateType::Modify => {
+                // todo: can be optimized by using child_region-delta instead of re-computing all children
                 self.detach_from_children(cell_address);
                 self.cell_mut(cell_address).update_formula(raw_formula);
                 self.attach_to_children(cell_address);
