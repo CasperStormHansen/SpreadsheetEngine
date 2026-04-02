@@ -12,7 +12,7 @@ macro_rules! assert_value {
     ($spreadsheet:expr, $address:expr, $expected:expr $(,)?) => {{
         assert_eq!(
             $spreadsheet.cell_value($address),
-            Some(&$expected),
+            Some($expected),
         );
     }};
 }

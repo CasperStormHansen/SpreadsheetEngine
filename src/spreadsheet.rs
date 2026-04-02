@@ -15,8 +15,8 @@ impl Spreadsheet {
         }
     }
 
-    pub fn cell_value(&self, cell_address: CellAddress) -> Option<&CellValue> {
-        self.cells.get(&cell_address).map(|cell| &cell.value)
+    pub fn cell_value(&self, cell_address: CellAddress) -> Option<CellValue> {
+        self.cells.get(&cell_address).map(|cell| cell.value.clone())
     }
 
     pub fn input_raw_formula(&mut self, cell_address: CellAddress, raw_formula: &str) {
@@ -122,11 +122,14 @@ impl Spreadsheet {
 
     fn clear_ancestor_values(&mut self, address: CellAddress) {
         let mut queue: Vec<_> = self.cells[&address].parents.iter().cloned().collect();
+
         while let Some(ancestor_address) = queue.pop() {
             let ancestor = self.cell_mut(ancestor_address);
+
             if ancestor.value == Unevaluated {
                 continue;
             }
+
             ancestor.value = Unevaluated;
             for ancestor_parent_address in &ancestor.parents {
                 queue.push(*ancestor_parent_address);
@@ -159,6 +162,7 @@ impl Spreadsheet {
         while let Some(address) = evaluation_queue.pop() {
             let value = self.cells[&address].parsed_formula.evaluate(self);
             self.cell_mut(address).value = value;
+
             evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(address));
         }
     }
