@@ -199,3 +199,91 @@ fn chain_of_three_cells() {
         parents: set![adr![0, 1]],
     });
 }
+
+#[test]
+fn modification() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(adr![0, 0], "(0,1)");
+    spreadsheet.input_raw_formula(adr![0, 1], "(0,2)");
+    spreadsheet.input_raw_formula(adr![0, 2], "1.1");
+    spreadsheet.input_raw_formula(adr![1, 2], "2.2");
+    spreadsheet.input_raw_formula(adr![0, 1], "(1,2)");
+
+    assert_eq!(spreadsheet.cells.len(), 4);
+    assert_eq!(spreadsheet.cells[& adr![0, 0]], Cell {
+        raw_formula: "(0,1)".to_string(),
+        parsed_formula: CellReference(adr![0, 1]),
+        child_regions: set![SingleCell(adr![0, 1])],
+        children: set![adr![0, 1]],
+        value: Number(2.2),
+        parents: set![],
+    });
+    assert_eq!(spreadsheet.cells[& adr![0, 1]], Cell {
+        raw_formula: "(1,2)".to_string(),
+        parsed_formula: CellReference(adr![1, 2]),
+        child_regions: set![SingleCell(adr![1, 2])],
+        children: set![adr![1, 2]],
+        value: Number(2.2),
+        parents: set![adr![0, 0]],
+    });
+    assert_eq!(spreadsheet.cells[& adr![0, 2]], Cell {
+        raw_formula: "1.1".to_string(),
+        parsed_formula: NumberLiteral(1.1),
+        child_regions: set![],
+        children: set![],
+        value: Number(1.1),
+        parents: set![],
+    });
+    assert_eq!(spreadsheet.cells[& adr![1, 2]], Cell {
+        raw_formula: "2.2".to_string(),
+        parsed_formula: NumberLiteral(2.2),
+        child_regions: set![],
+        children: set![],
+        value: Number(2.2),
+        parents: set![adr![0, 1]],
+    });
+}
+
+#[test]
+fn deletion() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(adr![0, 0], "(0,1)");
+    spreadsheet.input_raw_formula(adr![0, 1], "(0,2)");
+    spreadsheet.input_raw_formula(adr![0, 2], "1.1");
+    spreadsheet.input_raw_formula(adr![0, 1], "");
+
+    assert_eq!(spreadsheet.cells.len(), 2);
+    assert_eq!(spreadsheet.cells[& adr![0, 0]], Cell {
+        raw_formula: "(0,1)".to_string(),
+        parsed_formula: CellReference(adr![0, 1]),
+        child_regions: set![SingleCell(adr![0, 1])],
+        children: set![],
+        value: Number(0.0),
+        parents: set![],
+    });
+    assert_eq!(spreadsheet.cells[& adr![0, 2]], Cell {
+        raw_formula: "1.1".to_string(),
+        parsed_formula: NumberLiteral(1.1),
+        child_regions: set![],
+        children: set![],
+        value: Number(1.1),
+        parents: set![],
+    });
+}
+
+#[test]
+fn keep_absent() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(adr![0, 0], "(0,1)");
+    spreadsheet.input_raw_formula(adr![0, 1], "");
+
+    assert_eq!(spreadsheet.cells.len(), 1);
+    assert_eq!(spreadsheet.cells[& adr![0, 0]], Cell {
+        raw_formula: "(0,1)".to_string(),
+        parsed_formula: CellReference(adr![0, 1]),
+        child_regions: set![SingleCell(adr![0, 1])],
+        children: set![],
+        value: Number(0.0),
+        parents: set![],
+    });
+}

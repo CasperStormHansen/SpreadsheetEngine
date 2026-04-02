@@ -143,7 +143,7 @@ impl Spreadsheet {
         }
     }
 
-    fn has_no_unevaluated_children(&self, address: CellAddress) -> bool {
+    fn has_no_unevaluated_children(& self, address: CellAddress) -> bool {
         self.cells[&address].children.iter()
             .all(|child_address| {
                 self.cells[child_address].value != Unevaluated
