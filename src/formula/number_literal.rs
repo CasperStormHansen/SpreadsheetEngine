@@ -20,7 +20,7 @@ impl Formula for NumberLiteral {
 }
 
 impl WellFormedFormula for NumberLiteral {
-    fn try_parse(input: &str) -> Option<Self> {
-        f64::from_str(input).ok().map(|number| Self { number })
+    fn try_parse(raw_formula: &str) -> Option<Self> {
+        f64::from_str(raw_formula).ok().map(|number| Self { number })
     }
 }

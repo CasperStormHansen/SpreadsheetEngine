@@ -22,8 +22,8 @@ impl Formula for CellReference {
 }
 
 impl WellFormedFormula for CellReference {
-    fn try_parse(input: &str) -> Option<Self> {
-        let input_without_parenthesis = input.strip_prefix('(')?.strip_suffix(')')?;
+    fn try_parse(raw_formula: &str) -> Option<Self> {
+        let input_without_parenthesis = raw_formula.strip_prefix('(')?.strip_suffix(')')?;
         let mut parts = input_without_parenthesis.split(',');
 
         let column = parts.next()?.trim().parse::<u32>().ok()?;

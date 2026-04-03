@@ -12,7 +12,7 @@ pub(crate) trait Formula {
 }
 
 trait WellFormedFormula: Formula {
-    fn try_parse(input: &str) -> Option<Self>
+    fn try_parse(raw_formula: &str) -> Option<Self>
     where
         Self: Sized;
 }
