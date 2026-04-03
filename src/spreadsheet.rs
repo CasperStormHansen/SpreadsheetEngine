@@ -171,6 +171,7 @@ impl Spreadsheet {
         self.cells
             .get_mut(&address)
             .unwrap_or_else(|| panic!("cell at address {:?} does not exist", address))
+            // This module is responsible for ensuring that the panic is never triggered.
     }
 }
 

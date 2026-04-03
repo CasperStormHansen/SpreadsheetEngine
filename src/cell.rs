@@ -9,6 +9,7 @@ use crate::formula::Formula;
 ///
 /// An empty cell is not represented in memory as a [`Cell`].
 pub(crate) struct Cell {
+
     /// The raw text entered by the user.
     ///
     /// This can be a formula, a literal number, or plain text.
@@ -21,17 +22,17 @@ pub(crate) struct Cell {
     /// delegating the actual parsing to the [`Formula`] module.
     pub(crate) parsed_formula: Box<dyn Formula>,
 
-    /// The regions of the spreadsheet that influence this cell's value.
+    /// The regions of the spreadsheet that directly influence this cell's value.
     ///
     /// For example, if the formula is `sum(A1:A10)`, then this set contains the
     /// corresponding [`CellRegion`] value for `A1:A10`.This does not imply that the referenced
-    /// cells actually exist as a [`Cell`] object.
+    /// cells actually exist as [`Cell`] objects.
     ///
     /// This module is responsible for triggering an update when [`Self::parsed_formula`] changes,
     /// delegating the actual determination of the regions to the [`Formula`] module.
     pub(crate) child_regions: HashSet<CellRegion>,
 
-    /// The set of cells that directly affect this cell's value. Equivalently: the set of cells that
+    /// The set of cells that directly influence this cell's value. Equivalently: the set of cells that
     /// belong to at least one of the [`Self::child_regions`].
     ///
     /// Unlike [`Self::child_regions`], this depends on which cells actually exist as a [`Cell`] object.
@@ -46,7 +47,7 @@ pub(crate) struct Cell {
     /// [`crate::spreadsheet::Spreadsheet`] module directly and by this module.
     pub(crate) value: CellValue,
 
-    /// The set of cells whose values depend on this cell.
+    /// The set of cells whose values depend directly on this cell.
     ///
     /// The [`crate::spreadsheet::Spreadsheet`] module is responsible for keeping it updated.
     pub(crate) parents: HashSet<CellAddress>,
