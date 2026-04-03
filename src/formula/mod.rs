@@ -3,7 +3,7 @@ use crate::cell_region::CellRegion;
 use crate::cell_value::CellValue;
 use crate::formula::cell_reference::CellReference;
 use crate::formula::number_literal::NumberLiteral;
-use crate::formula::parsing_error::ParsingError;
+use crate::formula::ill_formed_formula::IllFormedFormula;
 use crate::spreadsheet::Spreadsheet;
 
 pub(crate) trait Formula {
@@ -11,7 +11,7 @@ pub(crate) trait Formula {
     fn get_child_regions(&self) -> HashSet<CellRegion>;
 }
 
-trait ProperFormula : Formula {
+trait WellFormedFormula: Formula {
     fn try_parse(input: &str) -> Option<Self>
     where
         Self: Sized;
@@ -24,7 +24,7 @@ macro_rules! try_parse_in_order {
                 return Box::new(formula);
             }
         )+
-        Box::new(ParsingError::new($raw_formula))
+        Box::new(IllFormedFormula::new($raw_formula))
     }};
 }
 
@@ -37,4 +37,4 @@ pub(crate) fn parse(raw_formula: &str) -> Box<dyn Formula> {
 
 mod number_literal;
 mod cell_reference;
-mod parsing_error;
+mod ill_formed_formula;

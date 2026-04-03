@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use crate::cell_region::CellRegion;
 use crate::cell_value::CellValue;
-use crate::formula::{Formula, ProperFormula};
+use crate::formula::{Formula, WellFormedFormula};
 use crate::Spreadsheet;
 
 pub(crate) struct NumberLiteral {
@@ -19,7 +19,7 @@ impl Formula for NumberLiteral {
     }
 }
 
-impl ProperFormula for NumberLiteral {
+impl WellFormedFormula for NumberLiteral {
     fn try_parse(input: &str) -> Option<Self> {
         f64::from_str(input).ok().map(|number| Self { number })
     }

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use crate::cell_value::CellValue;
-use crate::formula::{Formula, ProperFormula};
+use crate::formula::{Formula, WellFormedFormula};
 use crate::{CellAddress, Spreadsheet};
 use crate::cell_region::CellRegion;
 
@@ -21,7 +21,7 @@ impl Formula for CellReference {
     }
 }
 
-impl ProperFormula for CellReference {
+impl WellFormedFormula for CellReference {
     fn try_parse(input: &str) -> Option<Self> {
         let input_without_parenthesis = input.strip_prefix('(')?.strip_suffix(')')?;
         let mut parts = input_without_parenthesis.split(',');
