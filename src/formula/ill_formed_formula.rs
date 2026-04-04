@@ -19,7 +19,7 @@ impl Formula for IllFormedFormula {
 }
 
 impl IllFormedFormula {
-    pub(crate) fn new(error_message: &str) -> Self {
-        Self {error_message: error_message.to_string()} // Todo: needs improvement
+    pub(crate) fn new(error_message: String) -> Self {
+        Self {error_message } // Todo: needs improvement
     }
 }

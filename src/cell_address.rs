@@ -1,7 +1,7 @@
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
 pub struct CellAddress {
-    column: u32,
-    row: u32,
+    pub column: u32,
+    pub row: u32,
 }
 
 impl CellAddress {

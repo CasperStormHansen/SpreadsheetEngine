@@ -3,6 +3,7 @@ use crate::cell_value::CellValue;
 use crate::formula::{Formula, WellFormedFormula};
 use crate::{CellAddress, Spreadsheet};
 use crate::cell_region::CellRegion;
+use crate::formula::common_parsing::parse_cell_address;
 
 pub(crate) struct CellReference {
     cell_address: CellAddress
@@ -17,22 +18,16 @@ impl Formula for CellReference {
     }
     
     fn get_child_regions(&self) -> HashSet<CellRegion> {
-        HashSet::from([CellRegion::SingleCell(self.cell_address.clone())])
+        HashSet::from([
+            CellRegion::new_single_cell(self.cell_address.clone())
+        ])
     }
 }
 
 impl WellFormedFormula for CellReference {
     fn try_parse(raw_formula: &str) -> Option<Self> {
-        let input_without_parenthesis = raw_formula.strip_prefix('(')?.strip_suffix(')')?;
-        let mut parts = input_without_parenthesis.split(',');
-
-        let column = parts.next()?.trim().parse::<u32>().ok()?;
-        let row = parts.next()?.trim().parse::<u32>().ok()?;
-
-        if parts.next().is_some() {
-            return None;
-        }
-
-        Some(Self{cell_address: CellAddress::new(column, row)})
+        let inner = raw_formula.strip_prefix('(')?.strip_suffix(')')?;
+        let cell_address = parse_cell_address(inner)?;
+        Some(Self{cell_address})
     }
 }

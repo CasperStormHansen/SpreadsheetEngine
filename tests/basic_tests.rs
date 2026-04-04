@@ -1,30 +1,8 @@
+mod common_test;
+
 use spreadsheet_engine::Spreadsheet;
 use spreadsheet_engine::CellAddress;
 use spreadsheet_engine::CellValue::{Number, Error, Unevaluated};
-
-macro_rules! adr {
-    ($column:expr, $row:expr) => {
-        CellAddress::new($column, $row)
-    };
-}
-
-macro_rules! assert_value {
-    ($spreadsheet:expr, $address:expr, $expected:expr $(,)?) => {{
-        assert_eq!(
-            $spreadsheet.cell_value($address),
-            Some($expected),
-        );
-    }};
-}
-
-macro_rules! assert_empty {
-    ($spreadsheet:expr, $address:expr) => {{
-        assert_eq!(
-            $spreadsheet.cell_value($address),
-            None,
-        );
-    }};
-}
 
 #[test]
 fn single_cell_number_literal() {
@@ -45,9 +23,9 @@ fn single_self_referencing_cell() {
 #[test]
 fn single_cell_with_invalid_formula() {
     let mut spreadsheet = Spreadsheet::new();
-    spreadsheet.input_raw_formula(adr![0, 0], "invalid formula");
+    spreadsheet.input_raw_formula(adr![0, 0], "InvalidFormula");
 
-    assert_value!(spreadsheet, adr![0, 0], Error("invalid formula".to_string()));
+    assert_value!(spreadsheet, adr![0, 0], Error("InvalidFormula".to_string()));
 }
 
 #[test]
