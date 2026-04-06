@@ -3,7 +3,8 @@ use crate::cell_value::CellValue;
 use crate::formula::{Formula, WellFormedFormula};
 use crate::{CellAddress, Spreadsheet};
 use crate::cell_region::CellRegion;
-use crate::formula::common_parsing::parse_cell_address;
+use crate::formula::utils::common_parsing::parse_cell_address;
+use crate::formula::utils::string_without_whitespace::StringWithoutWhitespace;
 
 pub(crate) struct CellReference {
     cell_address: CellAddress
@@ -25,7 +26,7 @@ impl Formula for CellReference {
 }
 
 impl WellFormedFormula for CellReference {
-    fn try_parse(raw_formula: &str) -> Option<Self> {
+    fn try_parse(raw_formula: &StringWithoutWhitespace) -> Option<Self> {
         let inner = raw_formula.strip_prefix('(')?.strip_suffix(')')?;
         let cell_address = parse_cell_address(inner)?;
         Some(Self{cell_address})

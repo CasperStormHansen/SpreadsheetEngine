@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use crate::formula::{Formula, WellFormedFormula};
 use crate::{CellValue, Spreadsheet};
 use crate::cell_region::CellRegion;
-use crate::formula::common_parsing::parse_cell_address;
+use crate::formula::utils::common_parsing::parse_cell_address;
+use crate::formula::utils::string_without_whitespace::StringWithoutWhitespace;
 
 pub(crate) struct AreaSum {
     area: CellRegion
@@ -35,7 +36,7 @@ impl Formula for AreaSum {
 
 impl WellFormedFormula for AreaSum {
     // TODO: Accept cell addresses in the letter-number format.
-    fn try_parse(raw_formula: &str) -> Option<Self> {
+    fn try_parse(raw_formula: &StringWithoutWhitespace) -> Option<Self> {
         let inner = raw_formula.strip_prefix("SUM(")?.strip_suffix(')')?;
         let (left, right) = inner.split_once(':')?;
         let upper_left = parse_cell_address(left)?;
