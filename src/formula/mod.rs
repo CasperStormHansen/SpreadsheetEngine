@@ -5,7 +5,7 @@ use crate::formula::area_sum::AreaSum;
 use crate::formula::cell_reference::CellReference;
 use crate::formula::number_literal::NumberLiteral;
 use crate::formula::ill_formed_formula::IllFormedFormula;
-use crate::formula::utils::string_without_whitespace::StringWithoutWhitespace;
+use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 use crate::spreadsheet::Spreadsheet;
 
 pub(crate) trait Formula {
@@ -14,7 +14,7 @@ pub(crate) trait Formula {
 }
 
 trait WellFormedFormula: Formula {
-    fn try_parse(raw_formula: &StringWithoutWhitespace) -> Option<Self>
+    fn try_parse(raw_formula: &NormalizedRawFormula) -> Option<Self>
     where
         Self: Sized;
 }
@@ -22,7 +22,7 @@ trait WellFormedFormula: Formula {
 macro_rules! try_parse_in_order {
     ($raw_formula:expr, $($ty:ty),+ $(,)?) => {{
         let raw_formula: &str = $raw_formula;
-        let raw_formula_without_whitespace = StringWithoutWhitespace::from(raw_formula);
+        let raw_formula_without_whitespace = NormalizedRawFormula::from(raw_formula);
         $(
             if let Some(formula) = <$ty>::try_parse(&raw_formula_without_whitespace) {
                 return Box::new(formula);

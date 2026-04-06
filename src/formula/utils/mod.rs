@@ -1,2 +1,2 @@
 pub mod common_parsing;
-pub mod string_without_whitespace;
+pub mod normalized_raw_formula;
