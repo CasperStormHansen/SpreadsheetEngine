@@ -66,8 +66,7 @@ impl Spreadsheet {
     }
 
     // TODO: Consider adding an index for cells to avoid looping over all cells (in 'attach_to_parents'
-    // and 'attach_to_children'). Options include: BTreeMap<u32, BTreeMap<u32, Cell>>, R-tree, quadtree,
-    // range tree, segment tree.
+    // and 'attach_to_children'). Options include: R-tree, range tree
     fn attach_to_parents(&mut self, address: CellAddress) {
         let parent_addresses: Vec<CellAddress> = self.cells.iter()
             .filter(|(_, potential_parent)| {

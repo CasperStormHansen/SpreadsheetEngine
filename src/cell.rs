@@ -51,6 +51,10 @@ pub(crate) struct Cell {
     ///
     /// The [`crate::spreadsheet::Spreadsheet`] module is responsible for keeping it updated.
     pub(crate) parents: HashSet<CellAddress>,
+
+    // Todo: Consider using raw pointers for children and parents.
+    // Advantages: More readable code, slightly faster.
+    // Handling memory safety can be done centrally.
 }
 
 impl Cell {
