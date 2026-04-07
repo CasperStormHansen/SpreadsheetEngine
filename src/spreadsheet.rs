@@ -65,8 +65,8 @@ impl Spreadsheet {
         }
     }
 
-    // TODO: Consider adding an index for cells to avoid looping over all cells (in 'attach_to_parents'
-    // and 'attach_to_children'). Options include: R-tree, range tree
+    // TODO: Index cell regions that are child regions of some cell in a 2D interval tree to avoid
+    // looping over all cells
     fn attach_to_parents(&mut self, address: CellAddress) {
         let parent_addresses: Vec<CellAddress> = self.cells.iter()
             .filter(|(_, potential_parent)| {
@@ -92,6 +92,7 @@ impl Spreadsheet {
         }
     }
 
+    // TODO: Index cells with a 2D range tree to avoid looping over all cells
     fn attach_to_children(&mut self, address: CellAddress) {
         let child_addresses: Vec<CellAddress> = self.cells[&address]
             .child_regions.iter().flat_map(|child_region| {

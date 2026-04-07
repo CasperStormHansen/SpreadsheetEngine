@@ -10,7 +10,7 @@ pub(crate) struct AreaSum {
 }
 
 impl Formula for AreaSum {
-    // Todo: This can be optimized. See the todo above attach_to_parents in Spreadsheet.
+    // Todo: This can be optimized. See the todo above attach_to_children in Spreadsheet.
     fn evaluate(&self, spreadsheet: &Spreadsheet) -> CellValue {
         let mut sum = 0.0;
         let values = spreadsheet.cells.iter()
