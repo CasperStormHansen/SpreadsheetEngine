@@ -66,7 +66,7 @@ impl Spreadsheet {
     }
 
     // TODO: Index cell regions that are child regions of some cell in a 2D interval tree to avoid
-    // looping over all cells
+    // looping over all cells. Use this crate: https://docs.rs/interavl/latest/interavl/
     fn attach_to_parents(&mut self, address: CellAddress) {
         let parent_addresses: Vec<CellAddress> = self.cells.iter()
             .filter(|(_, potential_parent)| {
@@ -92,7 +92,10 @@ impl Spreadsheet {
         }
     }
 
-    // TODO: Index cells with a 2D range tree to avoid looping over all cells
+    // TODO: Replace
+    // cells: HashMap<CellAddress, Cell> with
+    // cells: BTreeMap<column, BTreeMap<row, Cell>>
+    // to avoid looping over all cells
     fn attach_to_children(&mut self, address: CellAddress) {
         let child_addresses: Vec<CellAddress> = self.cells[&address]
             .child_regions.iter().flat_map(|child_region| {
