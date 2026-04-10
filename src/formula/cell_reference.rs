@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use crate::cell_value::CellValue;
 use crate::formula::{Formula, WellFormedFormula};
 use crate::{CellAddress, Spreadsheet};
-use crate::cell_region::CellRegion;
+use crate::cell_rectangle::CellRectangle;
 use crate::formula::utils::common_parsing::parse_cell_address;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 
@@ -18,9 +18,9 @@ impl Formula for CellReference {
         }
     }
     
-    fn get_child_regions(&self) -> HashSet<CellRegion> {
+    fn get_child_rectangles(&self) -> HashSet<CellRectangle> {
         HashSet::from([
-            CellRegion::new_single_cell(self.cell_address.clone())
+            CellRectangle::new(self.cell_address.clone(), self.cell_address.clone()).unwrap()
         ])
     }
 }

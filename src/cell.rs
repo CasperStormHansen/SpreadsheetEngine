@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use crate::cell_address::CellAddress;
-use crate::cell_region::CellRegion;
+use crate::cell_rectangle::CellRectangle;
 use crate::cell_value::CellValue;
 use crate::formula;
 use crate::formula::Formula;
@@ -25,17 +25,17 @@ pub(crate) struct Cell {
     /// The regions of the spreadsheet that directly influence this cell's value.
     ///
     /// For example, if the formula is `sum(A1:A10)`, then this set contains the
-    /// corresponding [`CellRegion`] value for `A1:A10`.This does not imply that the referenced
+    /// corresponding [`CellRectangle`] value for `A1:A10`.This does not imply that the referenced
     /// cells actually exist as [`Cell`] objects.
     ///
     /// This module is responsible for triggering an update when [`Self::parsed_formula`] changes,
-    /// delegating the actual determination of the regions to the [`Formula`] module.
-    pub(crate) child_regions: HashSet<CellRegion>,
+    /// delegating the actual determination of the rectangles to the [`Formula`] module.
+    pub(crate) child_rectangles: HashSet<CellRectangle>,
 
     /// The set of cells that directly influence this cell's value. Equivalently: the set of cells that
-    /// belong to at least one of the [`Self::child_regions`].
+    /// belong to at least one of the [`Self::child_rectangles`].
     ///
-    /// Unlike [`Self::child_regions`], this depends on which cells actually exist as a [`Cell`] object.
+    /// Unlike [`Self::child_rectangles`], this depends on which cells actually exist as a [`Cell`] object.
     /// Therefore, the [`crate::spreadsheet::Spreadsheet`] module is responsible for keeping it updated.
     pub(crate) children: HashSet<CellAddress>,
 
@@ -60,11 +60,11 @@ pub(crate) struct Cell {
 impl Cell {
     pub(crate) fn new(raw_formula: &str) -> Cell {
         let parsed_formula = formula::parse(raw_formula);
-        let child_regions = parsed_formula.get_child_regions();
+        let child_rectangles = parsed_formula.get_child_rectangles();
         Cell {
             raw_formula: raw_formula.to_string(),
             parsed_formula,
-            child_regions,
+            child_rectangles,
             children: HashSet::new(),
             value: CellValue::Unevaluated,
             parents: HashSet::new(),
@@ -73,10 +73,10 @@ impl Cell {
 
     pub(crate) fn update_formula(&mut self, raw_formula: &str) {
         let parsed_formula = formula::parse(&raw_formula);
-        let child_regions = parsed_formula.get_child_regions();
+        let child_rectangles = parsed_formula.get_child_rectangles();
         self.raw_formula = raw_formula.to_string();
         self.parsed_formula = parsed_formula;
-        self.child_regions = child_regions;
+        self.child_rectangles = child_rectangles;
         self.value = CellValue::Unevaluated;
     }
 }

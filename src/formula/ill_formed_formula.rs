@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::cell_region::CellRegion;
+use crate::cell_rectangle::CellRectangle;
 use crate::cell_value::CellValue;
 use crate::formula::Formula;
 use crate::Spreadsheet;
@@ -13,7 +13,7 @@ impl Formula for IllFormedFormula {
         CellValue::Error(self.error_message.clone())
     }
 
-    fn get_child_regions(&self) -> HashSet<CellRegion> {
+    fn get_child_rectangles(&self) -> HashSet<CellRectangle> {
         HashSet::new()
     }
 }

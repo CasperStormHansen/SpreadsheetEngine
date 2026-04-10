@@ -1,17 +1,17 @@
-use std::collections::HashMap;
+use crate::cell_map::CellMap;
 use crate::cell::Cell;
 use crate::cell_address::CellAddress;
 use crate::cell_value::CellValue;
 use crate::cell_value::CellValue::Unevaluated;
 
 pub struct Spreadsheet {
-    pub(crate) cells: HashMap<CellAddress, Cell>,
+    pub(crate) cells: CellMap,
 }
 
 impl Spreadsheet {
     pub fn new() -> Spreadsheet {
         Self {
-            cells: HashMap::new(),
+            cells: CellMap::new(),
         }
     }
 
@@ -33,9 +33,9 @@ impl Spreadsheet {
                 evaluation_queue = self.get_cell_if_no_unevaluated_children(cell_address);
             },
             CellUpdateType::Modify => {
-                // todo: can be optimized by using child_region-delta instead of re-computing all children
+                // todo: can be optimized by using child_rectangle-delta instead of re-computing all children
                 self.detach_from_children(cell_address);
-                self.cell_mut(cell_address).update_formula(raw_formula);
+                self.cells[&cell_address].update_formula(raw_formula);
                 self.attach_to_children(cell_address);
                 self.clear_ancestor_values(cell_address);
                 evaluation_queue = self.get_cell_if_no_unevaluated_children(cell_address);
@@ -55,7 +55,7 @@ impl Spreadsheet {
 
     fn get_cell_update_type(& self, cell_address: CellAddress, raw_formula: &str) -> CellUpdateType {
         let raw_formula_has_content = !raw_formula.trim().is_empty();
-        let cell_already_exists = self.cells.contains_key(&cell_address);
+        let cell_already_exists = self.cells.contains(&cell_address);
 
         match (raw_formula_has_content, cell_already_exists) {
             (true, false) => CellUpdateType::Create,
@@ -65,61 +65,54 @@ impl Spreadsheet {
         }
     }
 
-    // TODO: Index cell regions that are child regions of some cell in a 2D interval tree to avoid
+    // TODO: Index cell rectangles that are child rectangles of some cell in a 2D interval tree to avoid
     // looping over all cells. Use this crate: https://docs.rs/interavl/latest/interavl/
     fn attach_to_parents(&mut self, address: CellAddress) {
         let parent_addresses: Vec<CellAddress> = self.cells.iter()
             .filter(|(_, potential_parent)| {
-                potential_parent.child_regions.iter()
-                    .any(|child_region| child_region.contains(&address))
+                potential_parent.child_rectangles.iter()
+                    .any(|child_rectangle| child_rectangle.contains(&address))
             })
-            .map(|(&potential_parent_address, _)| potential_parent_address)
+            .map(|(parent_address, _)| parent_address)
             .collect();
 
         for parent_address in parent_addresses {
-            self.cell_mut(address).parents.insert(parent_address);
-            self.cell_mut(parent_address).children.insert(address);
+            self.cells[&address].parents.insert(parent_address);
+            self.cells[&parent_address].children.insert(address);
         }
     }
 
     fn detach_from_parents(&mut self, address: CellAddress) {
-        let parent_addresses: Vec<CellAddress> = self.cell_mut(address)
+        let parent_addresses: Vec<CellAddress> = self.cells[&address]
             .parents.iter().copied().collect();
 
-        self.cell_mut(address).parents.clear();
+        self.cells[&address].parents.clear();
         for parent_address in parent_addresses {
-            self.cell_mut(parent_address).children.remove(&address);
+            self.cells[&parent_address].children.remove(&address);
         }
     }
 
-    // TODO: Replace
-    // cells: HashMap<CellAddress, Cell> with
-    // cells: BTreeMap<column, BTreeMap<row, Cell>>
-    // to avoid looping over all cells
     fn attach_to_children(&mut self, address: CellAddress) {
         let child_addresses: Vec<CellAddress> = self.cells[&address]
-            .child_regions.iter().flat_map(|child_region| {
-                self.cells.iter()
-                    .filter(|(potential_child_address, _)| {
-                        child_region.contains(&potential_child_address)
-                    })
-                    .map(|(&potential_child_address, _)| potential_child_address)
+            .child_rectangles.iter().flat_map(|child_rectangles| {
+                self.cells.get_all_in_rectangle(child_rectangles)
+                    .map(|(potential_child_address, _)| potential_child_address)
             })
             .collect();
 
         for child_address in child_addresses {
-            self.cell_mut(address).children.insert(child_address);
-            self.cell_mut(child_address).parents.insert(address);
+            self.cells[&address].children.insert(child_address);
+            self.cells[&child_address].parents.insert(address);
         }
     }
 
     fn detach_from_children(&mut self, address: CellAddress) {
-        let child_addresses: Vec<CellAddress> = self.cell_mut(address)
+        let child_addresses: Vec<CellAddress> = self.cells[&address]
             .children.iter().copied().collect();
 
-        self.cell_mut(address).children.clear();
+        self.cells[&address].children.clear();
         for child_address in child_addresses {
-            self.cell_mut(child_address).parents.remove(&address);
+            self.cells[&child_address].parents.remove(&address);
         }
     }
 
@@ -127,7 +120,7 @@ impl Spreadsheet {
         let mut queue: Vec<_> = self.cells[&address].parents.iter().cloned().collect();
 
         while let Some(ancestor_address) = queue.pop() {
-            let ancestor = self.cell_mut(ancestor_address);
+            let ancestor = &mut self.cells[&ancestor_address];
 
             if ancestor.value == Unevaluated {
                 continue;
@@ -164,17 +157,10 @@ impl Spreadsheet {
     fn evaluate(&mut self, mut evaluation_queue: Vec<CellAddress>) {
         while let Some(address) = evaluation_queue.pop() {
             let value = self.cells[&address].parsed_formula.evaluate(self);
-            self.cell_mut(address).value = value;
+            self.cells[&address].value = value;
 
             evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(address));
         }
-    }
-
-    fn cell_mut(&mut self, address: CellAddress) -> &mut Cell {
-        self.cells
-            .get_mut(&address)
-            .unwrap_or_else(|| panic!("cell at address {:?} does not exist", address))
-            // This module is responsible for ensuring that the panic is never triggered.
     }
 }
 

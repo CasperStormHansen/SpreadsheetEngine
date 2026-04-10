@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::cell_region::CellRegion;
+use crate::cell_rectangle::CellRectangle;
 use crate::cell_value::CellValue;
 use crate::formula::area_sum::AreaSum;
 use crate::formula::cell_reference::CellReference;
@@ -10,7 +10,7 @@ use crate::spreadsheet::Spreadsheet;
 
 pub(crate) trait Formula {
     fn evaluate(&self, spreadsheet: &Spreadsheet) -> CellValue;
-    fn get_child_regions(&self) -> HashSet<CellRegion>;
+    fn get_child_rectangles(&self) -> HashSet<CellRectangle>;
 }
 
 trait WellFormedFormula: Formula {

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::str::FromStr;
-use crate::cell_region::CellRegion;
+use crate::cell_rectangle::CellRectangle;
 use crate::cell_value::CellValue;
 use crate::formula::{Formula, WellFormedFormula};
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
@@ -15,7 +15,7 @@ impl Formula for NumberLiteral {
         CellValue::Number(self.number)
     }
 
-    fn get_child_regions(&self) -> HashSet<CellRegion> {
+    fn get_child_rectangles(&self) -> HashSet<CellRectangle> {
         HashSet::new()
     }
 }
