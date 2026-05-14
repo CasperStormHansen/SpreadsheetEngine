@@ -69,13 +69,6 @@ impl CellMap {
                     .map(move |(&row, cell)| (CellAddress { column, row }, cell))
             })
     }
-
-    // TODO: To be deleted
-    pub fn iter(&self) -> impl Iterator<Item = (CellAddress, &Cell)> {
-        self.by_column.iter().flat_map(|(&column, rows)| {
-            rows.iter().map(move |(&row, cell)| (CellAddress { column, row }, cell))
-        })
-    }
 }
 
 impl Index<&CellAddress> for CellMap {

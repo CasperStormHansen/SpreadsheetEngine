@@ -113,3 +113,29 @@ fn keep_absent() {
     assert_value!(spreadsheet, adr![0, 0], Number(0.0));
     assert_empty!(spreadsheet, adr![0, 1]);
 }
+
+#[test] // TODO: Fix so this passes
+fn u32_max_column() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(
+        adr![u32::MAX, 0],
+        &format!("({},1)", u32::MAX));
+    spreadsheet.input_raw_formula(
+        adr![u32::MAX, 1],
+        "2");
+
+    assert_value!(spreadsheet, adr![u32::MAX, 0], Number(2.0));
+}
+
+#[test] // TODO: Fix so this passes
+fn u32_max_row() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(
+        adr![0, u32::MAX],
+        &format!("(1,{})", u32::MAX));
+    spreadsheet.input_raw_formula(
+        adr![1, u32::MAX],
+        "2");
+
+    assert_value!(spreadsheet, adr![0, u32::MAX], Number(2.0));
+}

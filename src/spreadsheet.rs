@@ -1,17 +1,20 @@
 use crate::cell_map::CellMap;
 use crate::cell::Cell;
 use crate::cell_address::CellAddress;
+use crate::cell_parent_map::ParentLookupTree;
 use crate::cell_value::CellValue;
 use crate::cell_value::CellValue::Unevaluated;
 
 pub struct Spreadsheet {
     pub(crate) cells: CellMap,
+    parent_lookup_tree: ParentLookupTree,
 }
 
 impl Spreadsheet {
     pub fn new() -> Spreadsheet {
         Self {
             cells: CellMap::new(),
+            parent_lookup_tree: ParentLookupTree::new(),
         }
     }
 
@@ -27,6 +30,7 @@ impl Spreadsheet {
             CellUpdateType::Create => {
                 let cell = Cell::new(raw_formula);
                 self.cells.insert(cell_address, cell);
+                self.add_to_parent_lookup_tree(cell_address);
                 self.attach_to_parents(cell_address);
                 self.attach_to_children(cell_address);
                 self.clear_ancestor_values(cell_address);
@@ -35,7 +39,9 @@ impl Spreadsheet {
             CellUpdateType::Modify => {
                 // todo: can be optimized by using child_rectangle-delta instead of re-computing all children
                 self.detach_from_children(cell_address);
+                self.remove_from_parent_lookup_tree(cell_address);
                 self.cells[&cell_address].update_formula(raw_formula);
+                self.add_to_parent_lookup_tree(cell_address);
                 self.attach_to_children(cell_address);
                 self.clear_ancestor_values(cell_address);
                 evaluation_queue = self.get_cell_if_no_unevaluated_children(cell_address);
@@ -45,6 +51,7 @@ impl Spreadsheet {
                 evaluation_queue = self.get_parents_with_no_unevaluated_children(cell_address);
                 self.detach_from_parents(cell_address);
                 self.detach_from_children(cell_address);
+                self.remove_from_parent_lookup_tree(cell_address);
                 self.cells.remove(&cell_address);
             },
             CellUpdateType::KeepAbsent => return
@@ -65,17 +72,8 @@ impl Spreadsheet {
         }
     }
 
-    // TODO: Index cell rectangles that are child rectangles of some cell in a 2D interval tree to avoid
-    // looping over all cells. Use this crate: https://docs.rs/interavl/latest/interavl/
     fn attach_to_parents(&mut self, address: CellAddress) {
-        let parent_addresses: Vec<CellAddress> = self.cells.iter()
-            .filter(|(_, potential_parent)| {
-                potential_parent.child_rectangles.iter()
-                    .any(|child_rectangle| child_rectangle.contains(&address))
-            })
-            .map(|(parent_address, _)| parent_address)
-            .collect();
-
+        let parent_addresses = self.parent_lookup_tree.get_all_parents(address);
         for parent_address in parent_addresses {
             self.cells[&address].parents.insert(parent_address);
             self.cells[&parent_address].children.insert(address);
@@ -113,6 +111,20 @@ impl Spreadsheet {
         self.cells[&address].children.clear();
         for child_address in child_addresses {
             self.cells[&child_address].parents.remove(&address);
+        }
+    }
+    
+    fn add_to_parent_lookup_tree(&mut self, address: CellAddress) {
+        let child_rectangles = &self.cells[&address].child_rectangles;
+        for child_rectangle in child_rectangles {
+            self.parent_lookup_tree.insert(address, child_rectangle);
+        }
+    }
+
+    fn remove_from_parent_lookup_tree(&mut self, address: CellAddress) {
+        let child_rectangles = &self.cells[&address].child_rectangles;
+        for child_rectangle in child_rectangles {
+            self.parent_lookup_tree.delete(&address, child_rectangle);
         }
     }
 

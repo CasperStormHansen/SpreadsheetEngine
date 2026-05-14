@@ -3,5 +3,14 @@
 version = 4
 
 [[package]]
+name = "interavl"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e21626ee5b971d6989b0e094f1950ddd474f9e69d81fa6ab02f2d2c501624935"
+
+[[package]]
 name = "spreadsheet_engine"
 version = "0.1.0"
+dependencies = [
+ "interavl",
+]

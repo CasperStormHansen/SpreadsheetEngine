@@ -13,9 +13,4 @@ impl CellRectangle {
         }
         None
     }
-    
-    pub(crate) fn contains(& self, cell_address: &CellAddress) -> bool {
-        self.upper_left.row <= cell_address.row && cell_address.row <= self.lower_right.row &&
-        self.upper_left.column <= cell_address.column && cell_address.column <= self.lower_right.column
-    }
 }
