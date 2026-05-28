@@ -11,7 +11,9 @@ use crate::cell_rectangle::CellRectangle;
 /// - the inner tree indexes row intervals
 /// - each row interval stores a set of parent addresses
 pub(crate) struct ParentLookupTree {
-    by_column: IntervalTree<u32, IntervalTree<u32, HashSet<CellAddress>>>,
+    // u64 is used here even though the column and row numbers are u32s, because upper interval
+    // endpoints are exclusive, so representing a range ending at u32::MAX requires u32::MAX + 1.
+    by_column: IntervalTree<u64, IntervalTree<u64, HashSet<CellAddress>>>,
 }
 
 impl ParentLookupTree {
@@ -56,8 +58,8 @@ impl ParentLookupTree {
     }
 
     pub(crate) fn get_all_parents(&self, address: CellAddress) -> HashSet<CellAddress> {
-        let col_query = address.column..address.column.saturating_add(1); // TODO: BAD!
-        let row_query = address.row..address.row.saturating_add(1); // TODO: BAD!
+        let col_query = u64::from(address.column)..u64::from(address.column) + 1;
+        let row_query = u64::from(address.row)..u64::from(address.row) + 1;
 
         let mut parents = HashSet::new();
 
@@ -71,10 +73,10 @@ impl ParentLookupTree {
     }
 }
 
-fn col_range(rectangle: &CellRectangle) -> Range<u32> {
-    rectangle.upper_left.column..rectangle.lower_right.column.saturating_add(1) // TODO: BAD!
+fn col_range(rectangle: &CellRectangle) -> Range<u64> {
+    u64::from(rectangle.upper_left.column)..u64::from(rectangle.lower_right.column) + 1
 }
 
-fn row_range(rectangle: &CellRectangle) -> Range<u32> {
-    rectangle.upper_left.row..rectangle.lower_right.row.saturating_add(1) // TODO: BAD!
+fn row_range(rectangle: &CellRectangle) -> Range<u64> {
+    u64::from(rectangle.upper_left.row)..u64::from(rectangle.lower_right.row) + 1
 }
