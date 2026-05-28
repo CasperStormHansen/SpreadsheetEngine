@@ -114,7 +114,7 @@ fn keep_absent() {
     assert_empty!(spreadsheet, adr![0, 1]);
 }
 
-#[test] // TODO: Fix so this passes
+#[test]
 fn u32_max_column() {
     let mut spreadsheet = Spreadsheet::new();
     spreadsheet.input_raw_formula(
@@ -127,7 +127,7 @@ fn u32_max_column() {
     assert_value!(spreadsheet, adr![u32::MAX, 0], Number(2.0));
 }
 
-#[test] // TODO: Fix so this passes
+#[test]
 fn u32_max_row() {
     let mut spreadsheet = Spreadsheet::new();
     spreadsheet.input_raw_formula(
