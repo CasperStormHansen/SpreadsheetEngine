@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use crate::cell_rectangle::CellRectangle;
 use crate::cell_value::CellValue;
 use crate::formula::area_sum::AreaSum;
+use crate::formula::boolean_literal::BooleanLiteral;
 use crate::formula::cell_reference::CellReference;
 use crate::formula::number_literal::NumberLiteral;
 use crate::formula::ill_formed_formula::IllFormedFormula;
@@ -34,13 +35,15 @@ macro_rules! try_parse_in_order {
 
 pub(crate) fn parse(raw_formula: &str) -> Box<dyn Formula> {
     try_parse_in_order!(raw_formula,
-        NumberLiteral, 
+        NumberLiteral,
+        BooleanLiteral,
         CellReference,
         AreaSum
     )
 }
 
 mod number_literal;
+mod boolean_literal;
 mod cell_reference;
 mod ill_formed_formula;
 mod area_sum;

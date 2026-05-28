@@ -56,3 +56,14 @@ fn area_sum_area_includes_error_cell() {
 
     assert_value!(spreadsheet, adr![2, 0], Error("Summing over area with error".to_string()));
 }
+
+#[test]
+fn area_sum_area_includes_boolean_cell() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(adr![0, 0], "true");
+    spreadsheet.input_raw_formula(adr![0, 1], "2");
+    spreadsheet.input_raw_formula(adr![1, 0], "4");
+    spreadsheet.input_raw_formula(adr![2, 0], "SUM(0,0:1,1)");
+
+    assert_value!(spreadsheet, adr![2, 0], Error("Summing over area with boolean".to_string()));
+}

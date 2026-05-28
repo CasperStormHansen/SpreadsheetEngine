@@ -20,6 +20,8 @@ impl Formula for AreaSum {
             match value {
                 CellValue::Number(number) =>
                     sum += number,
+                CellValue::Boolean(_) =>
+                    return CellValue::Error("Summing over area with boolean".to_string()),
                 CellValue::Error(_) =>
                     return CellValue::Error("Summing over area with error".to_string()),
                 CellValue::Unevaluated =>
