@@ -10,10 +10,10 @@ pub(crate) struct Literal<T> {
     value: T,
 }
 
-impl<T: IntoEvaluatedValue + Copy> Formula for Literal<T> {
+impl<T: IntoEvaluatedValue + Clone> Formula for Literal<T> {
     fn evaluate(&self, _spreadsheet: &Spreadsheet) -> EvaluationResult {
         Ok(CompletedEvaluationResult(
-            self.value.into_value(),
+            self.value.clone().into_value(),
             self.get_initial_child_rectangles(),
         ))
     }
@@ -23,7 +23,9 @@ impl<T: IntoEvaluatedValue + Copy> Formula for Literal<T> {
     }
 }
 
-impl<T: IntoEvaluatedValue + Copy + FromStr> WellFormedFormula for Literal<T> {
+pub(super) trait DefaultParsing: FromStr + Clone {}
+
+impl<T: IntoEvaluatedValue + DefaultParsing> WellFormedFormula for Literal<T> {
     fn try_parse(raw_formula: &NormalizedRawFormula) -> Option<Self> {
         T::from_str(raw_formula).ok().map(|value| Self { value })
     }
@@ -35,3 +37,4 @@ trait IntoEvaluatedValue {
 
 pub(crate) mod number_literal;
 pub(crate) mod boolean_literal;
+pub(crate) mod text_literal;

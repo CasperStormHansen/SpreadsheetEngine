@@ -1,6 +1,6 @@
 use crate::EvaluatedValue;
 use crate::EvaluatedValue::Boolean;
-use crate::formula::literal::{IntoEvaluatedValue, Literal};
+use crate::formula::literal::{IntoEvaluatedValue, Literal, DefaultParsing};
 
 pub(crate) type BooleanLiteral = Literal<bool>;
 
@@ -9,3 +9,5 @@ impl IntoEvaluatedValue for bool {
         Boolean(self)
     }
 }
+
+impl DefaultParsing for bool {}

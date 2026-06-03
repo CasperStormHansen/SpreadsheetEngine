@@ -7,10 +7,19 @@ pub struct NormalizedRawFormula(String);
 
 impl From<&str> for NormalizedRawFormula {
     fn from(s: &str) -> Self {
-        Self(s.chars()
-            .filter(|c| !c.is_whitespace())
-            .flat_map(|c| c.to_lowercase())
-            .collect())
+        let mut result = String::new();
+        let mut in_string = false;
+        for c in s.chars() {
+            if c == '"' {
+                in_string = !in_string;
+                result.push(c);
+            } else if in_string {
+                result.push(c);
+            } else if !c.is_whitespace() {
+                result.extend(c.to_lowercase());
+            }
+        }
+        Self(result)
     }
 }
 

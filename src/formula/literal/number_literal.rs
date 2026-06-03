@@ -1,6 +1,6 @@
-use crate::EvaluatedValue::Number;
 use crate::EvaluatedValue;
-use crate::formula::literal::{IntoEvaluatedValue, Literal};
+use crate::EvaluatedValue::Number;
+use crate::formula::literal::{IntoEvaluatedValue, Literal, DefaultParsing};
 
 pub(crate) type NumberLiteral = Literal<f64>;
 
@@ -9,3 +9,5 @@ impl IntoEvaluatedValue for f64 {
         Number(self)
     }
 }
+
+impl DefaultParsing for f64 {}

@@ -9,6 +9,7 @@ pub type Value = Option<EvaluatedValue>;
 pub enum EvaluatedValue {
     Number(f64), // todo: To be improved. This choice means that 0.1 + 0.2 != 0.3 due to floating point precision issues.
     Boolean(bool),
+    Text(String),
     Error(String),
 }
 

@@ -2,7 +2,7 @@ use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::formula::utils::common_parsing::parse_cell_address;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 use crate::formula::{Formula, WellFormedFormula};
-use crate::value_types::EvaluatedValue::{Boolean, Error, Number};
+use crate::value_types::EvaluatedValue::{Boolean, Error, Number, Text};
 use crate::value_types::{EvaluationResult, CompletedEvaluationResult};
 use crate::Spreadsheet;
 use std::collections::HashSet;
@@ -26,6 +26,10 @@ impl Formula for AreaSum {
                 Some(Boolean(_)) =>
                     return Ok(CompletedEvaluationResult(
                         Error("Summing over area with boolean".to_string()),
+                        child_rectangles)),
+                Some(Text(_)) =>
+                    return Ok(CompletedEvaluationResult(
+                        Error("Summing over area with text".to_string()),
                         child_rectangles)),
                 Some(Error(_)) =>
                     return Ok(CompletedEvaluationResult(
