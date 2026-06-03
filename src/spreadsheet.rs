@@ -1,8 +1,10 @@
+use std::cmp::PartialEq;
 use std::collections::HashSet;
 use crate::cell_map::CellMap;
 use crate::cell::Cell;
 use crate::cell_address::CellAddress;
 use crate::cell_parent_map::ParentLookupTree;
+use crate::cell_rectangle::CellRectangle;
 use crate::value_types::{CompletedEvaluationResult, Value};
 use crate::formula;
 
@@ -37,7 +39,7 @@ impl Spreadsheet {
                 };
                 self.cells.insert(cell_address, cell);
                 self.attach_to_parents(cell_address);
-                let reset_cells = self.reset_value_and_children_for_self_and_ancestors(cell_address);
+                let reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
                 self.evaluate(reset_cells);
             },
             CellUpdateType::Modify => {
@@ -46,11 +48,11 @@ impl Spreadsheet {
                 cell.parsed_formula = formula::parse(&raw_formula);
                 self.add_to_parent_lookup_tree(cell_address);
                 self.attach_to_children(cell_address);
-                let reset_cells = self.reset_value_and_children_for_self_and_ancestors(cell_address);
+                let reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
                 self.evaluate(reset_cells);
             },
             CellUpdateType::Delete => {
-                let mut reset_cells = self.reset_value_and_children_for_self_and_ancestors(cell_address);
+                let mut reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
                 self.detach_from_parents(cell_address);
                 self.detach_from_children(cell_address);
                 self.remove_from_parent_lookup_tree(cell_address);
@@ -130,12 +132,13 @@ impl Spreadsheet {
         }
     }
 
-    fn reset_value_and_children_for_self_and_ancestors(&mut self, self_address: CellAddress) -> HashSet<CellAddress> {
+    fn reset_value_and_children_for_cell_and_ancestors(&mut self, self_address: CellAddress) -> HashSet<CellAddress> {
         let mut queue = vec![self_address];
         let mut reset_cells = HashSet::new();
 
         while let Some(address) = queue.pop() {
-            self.reset(address);
+            self.cells[&address].value = None;
+            self.update_child_data(address, ChildDataUpdateType::Reset);
             reset_cells.insert(address);
             queue.extend(
                 self.cells[&address].parents.iter()
@@ -147,18 +150,8 @@ impl Spreadsheet {
         reset_cells
     }
 
-    fn reset(&mut self, address: CellAddress) { // todo: optimize
-        self.cells[&address].value = None;
-        self.detach_from_children(address);
-        self.remove_from_parent_lookup_tree(address);
-        self.cells[&address].child_rectangles = self.cells[&address].parsed_formula.get_initial_child_rectangles();
-        self.add_to_parent_lookup_tree(address);
-        self.attach_to_children(address);
-    }
-
     fn filter_for_no_unevaluated_children(&self, addresses: &HashSet<CellAddress>) -> Vec<CellAddress> {
-        addresses
-            .iter()
+        addresses.iter()
             .filter(|address| self.has_no_unevaluated_children(*address))
             .copied()
             .collect()
@@ -177,6 +170,22 @@ impl Spreadsheet {
             })
     }
 
+    fn update_child_data(&mut self, address: CellAddress, child_update_type: ChildDataUpdateType) {
+        // todo: optimize, check if child_rectangles have changed
+        self.detach_from_children(address);
+        self.remove_from_parent_lookup_tree(address);
+        match child_update_type {
+            ChildDataUpdateType::Reset =>
+                self.cells[&address].child_rectangles = self.cells[&address].parsed_formula.get_initial_child_rectangles(),
+            ChildDataUpdateType::Set(child_rectangles) =>
+                self.cells[&address].child_rectangles = child_rectangles,
+            ChildDataUpdateType::Extend(extra_child_rectangles) =>
+                self.cells[&address].child_rectangles.extend(extra_child_rectangles)
+        }
+        self.add_to_parent_lookup_tree(address);
+        self.attach_to_children(address);
+    }
+
     fn evaluate(&mut self, reset_cells: HashSet<CellAddress>) {
         let mut evaluation_queue = self.filter_for_no_unevaluated_children(&reset_cells);
 
@@ -186,19 +195,11 @@ impl Spreadsheet {
                 Ok(CompletedEvaluationResult(value, child_rectangles)) =>
                 {
                     self.cells[&address].value = Some(value);
-                    // todo: optimize, check if child_rectangles have changed
-                    self.remove_from_parent_lookup_tree(address);
-                    self.cells[&address].child_rectangles = child_rectangles;
-                    self.add_to_parent_lookup_tree(address);
-                    self.attach_to_children(address);
-
+                    self.update_child_data(address, ChildDataUpdateType::Set(child_rectangles));
                     evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(address));
                 }
                 Err(extra_child_rectangles) => {
-                    self.remove_from_parent_lookup_tree(address);
-                    self.cells[&address].child_rectangles.extend(extra_child_rectangles);
-                    self.add_to_parent_lookup_tree(address);
-                    self.attach_to_children(address);
+                    self.update_child_data(address, ChildDataUpdateType::Extend(extra_child_rectangles));
                 }
             }
         }
@@ -210,4 +211,11 @@ enum CellUpdateType {
     Modify,
     Delete,
     KeepAbsent,
+}
+
+#[derive(PartialEq)]
+enum ChildDataUpdateType {
+    Reset,
+    Set(HashSet<CellRectangle>),
+    Extend(HashSet<CellRectangle>),
 }
