@@ -1,4 +1,4 @@
-use crate::cell_rectangle::CellRectangle;
+use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::formula::Formula;
 use crate::value_types::EvaluatedValue::Error;
 use crate::value_types::{EvaluationResult, CompletedEvaluationResult};

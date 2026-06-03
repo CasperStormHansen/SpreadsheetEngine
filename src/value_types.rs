@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::cell_rectangle::CellRectangle;
+use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 
 /// Represents the value of a [`Cell`]. A [`Cell`] has an [`EvaluatedValue`] if evaluation is not
 /// prevented by circularity.

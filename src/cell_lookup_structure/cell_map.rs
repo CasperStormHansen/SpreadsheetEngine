@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::ops::Bound::Included;
 use std::ops::{Index, IndexMut};
 use crate::cell::Cell;
-use crate::cell_address::CellAddress;
-use crate::cell_rectangle::CellRectangle;
+use crate::cell_lookup_structure::cell_address::CellAddress;
+use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 
 pub(crate) struct CellMap {
     by_column: BTreeMap<u32, BTreeMap<u32, Cell>>,

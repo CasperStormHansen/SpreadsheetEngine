@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use crate::cell_rectangle::CellRectangle;
+use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::value_types::EvaluationResult;
 use crate::formula::area_sum::AreaSum;
 use crate::formula::boolean_literal::BooleanLiteral;

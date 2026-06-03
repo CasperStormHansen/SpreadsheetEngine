@@ -1,4 +1,4 @@
-use crate::cell_rectangle::CellRectangle;
+use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::formula::utils::common_parsing::SplitOnceOutsideParentheses;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 use crate::formula::{parse, EvaluationResult, Formula, WellFormedFormula};

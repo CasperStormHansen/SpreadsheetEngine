@@ -1,4 +1,4 @@
-use crate::cell_address::CellAddress;
+use crate::cell_lookup_structure::cell_address::CellAddress;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub(crate) struct CellRectangle {

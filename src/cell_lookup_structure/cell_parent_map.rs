@@ -3,8 +3,8 @@ use std::ops::Range;
 
 use interavl::IntervalTree;
 
-use crate::cell_address::CellAddress;
-use crate::cell_rectangle::CellRectangle;
+use crate::cell_lookup_structure::cell_address::CellAddress;
+use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 
 /// 2D lookup structure:
 /// - the outer tree indexes column intervals

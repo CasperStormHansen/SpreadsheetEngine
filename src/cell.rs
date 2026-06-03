@@ -1,6 +1,6 @@
 use std::collections::HashSet;
-use crate::cell_address::CellAddress;
-use crate::cell_rectangle::CellRectangle;
+use crate::cell_lookup_structure::cell_address::CellAddress;
+use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::value_types::Value;
 use crate::formula::Formula;
 
