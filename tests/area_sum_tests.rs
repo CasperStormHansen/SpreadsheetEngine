@@ -1,5 +1,5 @@
 use spreadsheet_engine::CellAddress;
-use spreadsheet_engine::CellValue::{Error, Number, Unevaluated};
+use spreadsheet_engine::value_types::EvaluatedValue::*;
 use spreadsheet_engine::Spreadsheet;
 
 mod common_test;
@@ -32,7 +32,7 @@ fn area_sum_self_reference() {
     spreadsheet.input_raw_formula(adr![1, 0], "4");
     spreadsheet.input_raw_formula(adr![1, 1], "SUM(0,0:1,1)");
 
-    assert_value!(spreadsheet, adr![1, 1], Unevaluated);
+    assert_unevaluated!(spreadsheet, adr![1, 1]);
 }
 
 #[test]
@@ -43,7 +43,7 @@ fn area_sum_area_includes_self_referential_cell() {
     spreadsheet.input_raw_formula(adr![1, 0], "4");
     spreadsheet.input_raw_formula(adr![2, 0], "SUM(0,0:1,1)");
 
-    assert_value!(spreadsheet, adr![2, 0], Unevaluated);
+    assert_unevaluated!(spreadsheet, adr![2, 0]);
 }
 
 #[test]

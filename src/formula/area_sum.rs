@@ -1,9 +1,11 @@
-use std::collections::HashSet;
-use crate::formula::{Formula, WellFormedFormula};
-use crate::{CellValue, Spreadsheet};
 use crate::cell_rectangle::CellRectangle;
 use crate::formula::utils::common_parsing::parse_cell_address;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
+use crate::formula::{Formula, WellFormedFormula};
+use crate::value_types::EvaluatedValue::{Boolean, Error, Number};
+use crate::value_types::{EvaluationResult, CompletedEvaluationResult};
+use crate::Spreadsheet;
+use std::collections::HashSet;
 
 pub(crate) struct AreaSum {
     area: CellRectangle
@@ -11,27 +13,32 @@ pub(crate) struct AreaSum {
 
 impl Formula for AreaSum {
     // Todo: This can be optimized. See the todo above attach_to_children in Spreadsheet.
-    fn evaluate(&self, spreadsheet: &Spreadsheet) -> CellValue {
+    fn evaluate(&self, spreadsheet: &Spreadsheet) -> EvaluationResult {
         let mut sum = 0.0;
         let values = spreadsheet.cells
             .get_all_in_rectangle(&self.area)
             .map(|(_, cell)| &cell.value);
+        let child_rectangles = self.get_initial_child_rectangles();
         for value in values {
             match value {
-                CellValue::Number(number) =>
+                Some(Number(number)) =>
                     sum += number,
-                CellValue::Boolean(_) =>
-                    return CellValue::Error("Summing over area with boolean".to_string()),
-                CellValue::Error(_) =>
-                    return CellValue::Error("Summing over area with error".to_string()),
-                CellValue::Unevaluated =>
-                    panic!("Evaluation of cell with unevaluated children has been triggered") // TODO: This should not have to be handled in each formula module.
+                Some(Boolean(_)) =>
+                    return Ok(CompletedEvaluationResult(
+                        Error("Summing over area with boolean".to_string()),
+                        child_rectangles)),
+                Some(Error(_)) =>
+                    return Ok(CompletedEvaluationResult(
+                        Error("Summing over area with error".to_string()),
+                        child_rectangles)),
+                None =>
+                    return Err(child_rectangles)
             }
         }
-        CellValue::Number(sum)
+        Ok(CompletedEvaluationResult(Number(sum), child_rectangles))
     }
 
-    fn get_child_rectangles(&self) -> HashSet<CellRectangle> {
+    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
         HashSet::from([self.area.clone()])
     }
 }

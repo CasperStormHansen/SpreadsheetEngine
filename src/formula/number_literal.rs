@@ -1,21 +1,25 @@
+use crate::cell_rectangle::CellRectangle;
+use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
+use crate::formula::{EvaluationResult, Formula, WellFormedFormula};
+use crate::value_types::EvaluatedValue::Number;
+use crate::value_types::CompletedEvaluationResult;
+use crate::Spreadsheet;
 use std::collections::HashSet;
 use std::str::FromStr;
-use crate::cell_rectangle::CellRectangle;
-use crate::cell_value::CellValue;
-use crate::formula::{Formula, WellFormedFormula};
-use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
-use crate::Spreadsheet;
 
 pub(crate) struct NumberLiteral {
     number: f64
 }
 
 impl Formula for NumberLiteral {
-    fn evaluate(&self, _spreadsheet: &Spreadsheet) -> CellValue {
-        CellValue::Number(self.number)
+    fn evaluate(&self, _spreadsheet: &Spreadsheet) -> EvaluationResult {
+        Ok(CompletedEvaluationResult(
+            Number(self.number),
+            self.get_initial_child_rectangles(),
+        ))
     }
 
-    fn get_child_rectangles(&self) -> HashSet<CellRectangle> {
+    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
         HashSet::new()
     }
 }

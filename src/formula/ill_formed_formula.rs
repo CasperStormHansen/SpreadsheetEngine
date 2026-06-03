@@ -1,19 +1,23 @@
-use std::collections::HashSet;
 use crate::cell_rectangle::CellRectangle;
-use crate::cell_value::CellValue;
 use crate::formula::Formula;
+use crate::value_types::EvaluatedValue::Error;
+use crate::value_types::{EvaluationResult, CompletedEvaluationResult};
 use crate::Spreadsheet;
+use std::collections::HashSet;
 
 pub(crate) struct IllFormedFormula {
     error_message: String
 }
 
 impl Formula for IllFormedFormula {
-    fn evaluate(&self, _spreadsheet: &Spreadsheet) -> CellValue {
-        CellValue::Error(self.error_message.clone())
+    fn evaluate(&self, _spreadsheet: &Spreadsheet) -> EvaluationResult {
+        Ok(CompletedEvaluationResult(
+            Error(self.error_message.clone()),
+            self.get_initial_child_rectangles()
+        ))
     }
 
-    fn get_child_rectangles(&self) -> HashSet<CellRectangle> {
+    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
         HashSet::new()
     }
 }

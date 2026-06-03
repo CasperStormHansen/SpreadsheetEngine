@@ -1,11 +1,10 @@
 use std::collections::HashSet;
 use crate::cell_address::CellAddress;
 use crate::cell_rectangle::CellRectangle;
-use crate::cell_value::CellValue;
-use crate::formula;
+use crate::value_types::Value;
 use crate::formula::Formula;
 
-/// Represents a spreadsheet cell that has a non-empty user-entered formula or literal.
+/// Represents a spreadsheet cell that has a non-empty user-entered formula.
 ///
 /// An empty cell is not represented in memory as a [`Cell`].
 pub(crate) struct Cell {
@@ -18,8 +17,8 @@ pub(crate) struct Cell {
 
     /// The parsed version of [`Self::raw_formula`].
     ///
-    /// This module is responsible for triggering a reparse when [`Self::raw_formula`] changes,
-    /// delegating the actual parsing to the [`Formula`] module.
+    /// The [`crate::spreadsheet::Spreadsheet`] module is responsible for triggering a reparse when
+    /// [`Self::raw_formula`] changes, delegating the actual parsing to the [`Formula`] module.
     pub(crate) parsed_formula: Box<dyn Formula>,
 
     /// The regions of the spreadsheet that directly influence this cell's value.
@@ -28,24 +27,25 @@ pub(crate) struct Cell {
     /// corresponding [`CellRectangle`] value for `A1:A10`.This does not imply that the referenced
     /// cells actually exist as [`Cell`] objects.
     ///
-    /// This module is responsible for triggering an update when [`Self::parsed_formula`] changes,
-    /// delegating the actual determination of the rectangles to the [`Formula`] module.
+    /// The [`crate::spreadsheet::Spreadsheet`] is responsible for triggering an update when
+    /// [`Self::parsed_formula`] changes, delegating the actual determination of the rectangles to
+    /// the [`Formula`] module.
     pub(crate) child_rectangles: HashSet<CellRectangle>,
 
     /// The set of cells that directly influence this cell's value. Equivalently: the set of cells that
     /// belong to at least one of the [`Self::child_rectangles`].
     ///
     /// Unlike [`Self::child_rectangles`], this depends on which cells actually exist as a [`Cell`] object.
-    /// Therefore, the [`crate::spreadsheet::Spreadsheet`] module is responsible for keeping it updated.
+    /// The [`crate::spreadsheet::Spreadsheet`] module is responsible for keeping it updated.
     pub(crate) children: HashSet<CellAddress>,
 
     /// The computed value of the cell.
     ///
-    /// It is the responsibility of the spreadsheet module to trigger an update when necessary,
-    /// but the actual calculation is the responsibility of the [`Formula`] module. However, it can
-    /// be set to the special value [`CellValue::Unevaluated`] by both the
-    /// [`crate::spreadsheet::Spreadsheet`] module directly and by this module.
-    pub(crate) value: CellValue,
+    /// It is the responsibility of the `crate::spreadsheet::Spreadsheet`] module to trigger an
+    /// update when necessary, but the actual calculation is the responsibility of the [`Formula`]
+    /// module. However, it can be set to `None` by the [`crate::spreadsheet::Spreadsheet`] module
+    /// directly.
+    pub(crate) value: Value,
 
     /// The set of cells whose values depend directly on this cell.
     ///
@@ -55,28 +55,4 @@ pub(crate) struct Cell {
     // Todo: Consider using raw pointers for children and parents.
     // Advantages: More readable code, slightly faster.
     // Handling memory safety can be done centrally.
-}
-
-impl Cell {
-    pub(crate) fn new(raw_formula: &str) -> Cell {
-        let parsed_formula = formula::parse(raw_formula);
-        let child_rectangles = parsed_formula.get_child_rectangles();
-        Cell {
-            raw_formula: raw_formula.to_string(),
-            parsed_formula,
-            child_rectangles,
-            children: HashSet::new(),
-            value: CellValue::Unevaluated,
-            parents: HashSet::new(),
-        }
-    }
-
-    pub(crate) fn update_formula(&mut self, raw_formula: &str) {
-        let parsed_formula = formula::parse(&raw_formula);
-        let child_rectangles = parsed_formula.get_child_rectangles();
-        self.raw_formula = raw_formula.to_string();
-        self.parsed_formula = parsed_formula;
-        self.child_rectangles = child_rectangles;
-        self.value = CellValue::Unevaluated;
-    }
 }

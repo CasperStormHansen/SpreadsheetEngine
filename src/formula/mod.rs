@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use crate::cell_rectangle::CellRectangle;
-use crate::cell_value::CellValue;
+use crate::value_types::EvaluationResult;
 use crate::formula::area_sum::AreaSum;
 use crate::formula::boolean_literal::BooleanLiteral;
 use crate::formula::cell_reference::CellReference;
@@ -11,8 +11,11 @@ use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 use crate::spreadsheet::Spreadsheet;
 
 pub(crate) trait Formula {
-    fn evaluate(&self, spreadsheet: &Spreadsheet) -> CellValue;
-    fn get_child_rectangles(&self) -> HashSet<CellRectangle>;
+    fn evaluate(&self, spreadsheet: &Spreadsheet) -> EvaluationResult;
+
+    /// This method returns the child_rectangles that are required for any evaluation of the formula.
+    /// Example: if the formula is of the form `IF(a,b,c)`, the initial child rectangles are those of `a`.
+    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle>;
 }
 
 trait WellFormedFormula: Formula {

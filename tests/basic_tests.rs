@@ -2,7 +2,7 @@ mod common_test;
 
 use spreadsheet_engine::Spreadsheet;
 use spreadsheet_engine::CellAddress;
-use spreadsheet_engine::CellValue::{Number, Error, Unevaluated};
+use spreadsheet_engine::value_types::EvaluatedValue::*;
 
 #[test]
 fn single_cell_number_literal() {
@@ -17,7 +17,7 @@ fn single_self_referencing_cell() {
     let mut spreadsheet = Spreadsheet::new();
     spreadsheet.input_raw_formula(adr![0, 0], "(0,0)");
 
-    assert_value!(spreadsheet, adr![0, 0], Unevaluated);
+    assert_unevaluated!(spreadsheet, adr![0, 0]);
 }
 
 #[test]
@@ -50,8 +50,8 @@ fn two_cells_referencing_each_other() {
 
     spreadsheet.input_raw_formula(adr![0, 1], "(0,0)");
 
-    assert_value!(spreadsheet, adr![0, 0], Unevaluated);
-    assert_value!(spreadsheet, adr![0, 1], Unevaluated);
+    assert_unevaluated!(spreadsheet, adr![0, 0]);
+    assert_unevaluated!(spreadsheet, adr![0, 1]);
 }
 
 #[test]
@@ -60,8 +60,8 @@ fn one_cell_referencing_self_referencing_cell() {
     spreadsheet.input_raw_formula(adr![0, 0], "(0,0)");
     spreadsheet.input_raw_formula(adr![0, 1], "(0,0)");
 
-    assert_value!(spreadsheet, adr![0, 0], Unevaluated);
-    assert_value!(spreadsheet, adr![0, 1], Unevaluated);
+    assert_unevaluated!(spreadsheet, adr![0, 0]);
+    assert_unevaluated!(spreadsheet, adr![0, 1]);
 }
 
 #[test]

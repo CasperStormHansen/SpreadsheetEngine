@@ -1,9 +1,11 @@
-use std::collections::HashSet;
-use crate::formula::{parse, Formula, WellFormedFormula};
-use crate::{CellValue, Spreadsheet};
 use crate::cell_rectangle::CellRectangle;
 use crate::formula::utils::common_parsing::SplitOnceOutsideParentheses;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
+use crate::formula::{parse, EvaluationResult, Formula, WellFormedFormula};
+use crate::value_types::EvaluatedValue::{Boolean, Error};
+use crate::value_types::CompletedEvaluationResult;
+use crate::Spreadsheet;
+use std::collections::HashSet;
 
 pub(crate) struct Conditional {
     condition: Box<dyn Formula>,
@@ -12,21 +14,37 @@ pub(crate) struct Conditional {
 }
 
 impl Formula for Conditional {
-    fn evaluate(&self, spreadsheet: &Spreadsheet) -> CellValue {
-        let conditional_value = self.condition.evaluate(spreadsheet);
-        match conditional_value {
-            CellValue::Boolean(true) => self.true_formula.evaluate(spreadsheet),
-            CellValue::Boolean(false) => self.false_formula.evaluate(spreadsheet),
-            _ => CellValue::Error("Condition is not boolean".to_string()),
+    fn evaluate(&self, spreadsheet: &Spreadsheet) -> EvaluationResult {
+        match self.condition.evaluate(spreadsheet) {
+            Ok(CompletedEvaluationResult(Boolean(true), child_rectangles)) =>
+                evaluate_branch(self.true_formula.as_ref(), spreadsheet, child_rectangles),
+            Ok(CompletedEvaluationResult(Boolean(false), child_rectangles)) =>
+                evaluate_branch(self.false_formula.as_ref(), spreadsheet, child_rectangles),
+            Ok(_) =>
+                Ok(CompletedEvaluationResult(Error("Condition is not boolean".to_string()), self.get_initial_child_rectangles())),
+            Err(request_for_more_child_rectangles) =>
+                Err(request_for_more_child_rectangles),
         }
     }
 
-    fn get_child_rectangles(&self) -> HashSet<CellRectangle> {
-        // todo: this should be dynamic and depend on the value of the conditional
-        let mut union = self.condition.get_child_rectangles();
-        union.extend(self.true_formula.get_child_rectangles());
-        union.extend(self.false_formula.get_child_rectangles());
-        union
+    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
+        self.condition.get_initial_child_rectangles()
+    }
+}
+
+fn evaluate_branch(
+    branch_formula: &dyn Formula,
+    spreadsheet: &Spreadsheet,
+    mut child_rectangles: HashSet<CellRectangle>
+) -> EvaluationResult {
+    match branch_formula.evaluate(spreadsheet) {
+        Ok(CompletedEvaluationResult(value, branch_child_rectangles)) => {
+            child_rectangles.extend(branch_child_rectangles);
+            Ok(CompletedEvaluationResult(value, child_rectangles))
+        }
+        Err(request_for_more_child_rectangles) => {
+            Err(request_for_more_child_rectangles)
+        }
     }
 }
 

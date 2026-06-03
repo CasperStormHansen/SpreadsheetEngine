@@ -1,11 +1,12 @@
 pub use spreadsheet::Spreadsheet;
 pub use cell_address::CellAddress;
-pub use cell_value::CellValue;
+pub use value_types::Value;
+pub use value_types::EvaluatedValue;
 
 mod cell;
 mod cell_address;
 mod cell_rectangle;
-mod cell_value;
+pub mod value_types;
 mod formula;
 mod spreadsheet;
 mod cell_map;

@@ -10,7 +10,17 @@ macro_rules! assert_value {
     ($spreadsheet:expr, $address:expr, $expected:expr $(,)?) => {{
         assert_eq!(
             $spreadsheet.cell_value($address),
-            Some($expected),
+            Some(Some($expected)),
+        );
+    }};
+}
+
+#[macro_export]
+macro_rules! assert_unevaluated {
+    ($spreadsheet:expr, $address:expr $(,)?) => {{
+        assert_eq!(
+            $spreadsheet.cell_value($address),
+            Some(None),
         );
     }};
 }
