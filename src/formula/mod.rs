@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::value_types::EvaluationResult;
 use crate::formula::area_sum::AreaSum;
-use crate::formula::boolean_literal::BooleanLiteral;
+use crate::formula::literal::boolean_literal::BooleanLiteral;
 use crate::formula::cell_reference::CellReference;
 use crate::formula::conditional::Conditional;
-use crate::formula::number_literal::NumberLiteral;
+use crate::formula::literal::number_literal::NumberLiteral;
 use crate::formula::ill_formed_formula::IllFormedFormula;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 use crate::spreadsheet::Spreadsheet;
@@ -47,10 +47,9 @@ pub(crate) fn parse(raw_formula: &str) -> Box<dyn Formula> {
     )
 }
 
-mod number_literal;
-mod boolean_literal;
 mod cell_reference;
 mod ill_formed_formula;
 mod area_sum;
 mod utils;
 mod conditional;
+mod literal;
