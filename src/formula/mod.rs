@@ -7,6 +7,7 @@ use crate::formula::cell_reference::CellReference;
 use crate::formula::conditional::Conditional;
 use crate::formula::literal::number_literal::NumberLiteral;
 use crate::formula::ill_formed_formula::IllFormedFormula;
+use crate::formula::indirect::Indirect;
 use crate::formula::literal::text_literal::TextLiteral;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 use crate::spreadsheet::Spreadsheet;
@@ -46,6 +47,7 @@ pub(crate) fn parse(raw_formula: &str) -> Box<dyn Formula> {
         CellReference,
         AreaSum,
         Conditional,
+        Indirect,
     )
 }
 
@@ -55,3 +57,4 @@ mod area_sum;
 mod utils;
 mod conditional;
 mod literal;
+mod indirect;

@@ -7,7 +7,7 @@ use spreadsheet_engine::value_types::EvaluatedValue::*;
 #[test]
 fn simple_text_literal() {
     let mut spreadsheet = Spreadsheet::new();
-    spreadsheet.input_raw_formula(adr![0, 0], "\"text\"");
+    spreadsheet.input_raw_formula(adr![0, 0], r#""text""#);
 
     assert_value!(spreadsheet, adr![0, 0], Text("text".to_string()));
 }
@@ -15,7 +15,7 @@ fn simple_text_literal() {
 #[test]
 fn text_literal_with_spaces_and_capitalization() {
     let mut spreadsheet = Spreadsheet::new();
-    spreadsheet.input_raw_formula(adr![0, 0], "\"Test Text\"");
+    spreadsheet.input_raw_formula(adr![0, 0], r#""Test Text""#);
 
     assert_value!(spreadsheet, adr![0, 0], Text("Test Text".to_string()));
 }
@@ -23,7 +23,7 @@ fn text_literal_with_spaces_and_capitalization() {
 #[test]
 fn text_literal_error() {
     let mut spreadsheet = Spreadsheet::new();
-    spreadsheet.input_raw_formula(adr![0, 0], "\"Test Text");
+    spreadsheet.input_raw_formula(adr![0, 0], r#""Test Text"#);
 
-    assert_value!(spreadsheet, adr![0, 0], Error("\"Test Text".to_string()));
+    assert_value!(spreadsheet, adr![0, 0], Error(r#""Test Text"#.to_string()));
 }
