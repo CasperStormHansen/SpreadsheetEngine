@@ -20,8 +20,8 @@ impl Formula for Conditional {
                 evaluate_branch(self.true_formula.as_ref(), spreadsheet, child_rectangles),
             Ok(CompletedEvaluationResult(Boolean(false), child_rectangles)) =>
                 evaluate_branch(self.false_formula.as_ref(), spreadsheet, child_rectangles),
-            Ok(_) =>
-                Ok(CompletedEvaluationResult(Error("Condition is not boolean".to_string()), self.get_initial_child_rectangles())),
+            Ok(CompletedEvaluationResult(_, child_rectangles)) =>
+                Ok(CompletedEvaluationResult(Error("Condition is not boolean".to_string()), child_rectangles)),
             Err(request_for_more_child_rectangles) =>
                 Err(request_for_more_child_rectangles),
         }
@@ -42,7 +42,8 @@ fn evaluate_branch(
             child_rectangles.extend(branch_child_rectangles);
             Ok(CompletedEvaluationResult(value, child_rectangles))
         }
-        Err(request_for_more_child_rectangles) => {
+        Err(mut request_for_more_child_rectangles) => {
+            request_for_more_child_rectangles.extend(child_rectangles);
             Err(request_for_more_child_rectangles)
         }
     }
