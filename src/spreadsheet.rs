@@ -11,6 +11,7 @@ use crate::formula;
 pub struct Spreadsheet {
     pub(crate) cells: CellMap,
     parent_lookup_tree: ParentLookupTree,
+    volatile_cells: HashSet<CellAddress>,
 }
 
 impl Spreadsheet {
@@ -18,6 +19,7 @@ impl Spreadsheet {
         Self {
             cells: CellMap::new(),
             parent_lookup_tree: ParentLookupTree::new(),
+            volatile_cells: HashSet::new(),
         }
     }
 
@@ -37,6 +39,9 @@ impl Spreadsheet {
                     value: None,
                     parents: HashSet::new(),
                 };
+                if cell.parsed_formula.is_volatile() {
+                    self.volatile_cells.insert(cell_address);
+                }
                 self.cells.insert(cell_address, cell);
                 self.attach_to_parents(cell_address);
                 let reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
@@ -46,12 +51,16 @@ impl Spreadsheet {
                 let cell = &mut self.cells[&cell_address];
                 cell.raw_formula = raw_formula.to_string();
                 cell.parsed_formula = formula::parse(&raw_formula);
-                self.add_to_parent_lookup_tree(cell_address);
-                self.attach_to_children(cell_address);
+                if cell.parsed_formula.is_volatile() {
+                    self.volatile_cells.insert(cell_address);
+                } else {
+                    self.volatile_cells.remove(&cell_address);
+                }
                 let reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
                 self.evaluate(reset_cells);
             },
             CellUpdateType::Delete => {
+                self.volatile_cells.remove(&cell_address);
                 let mut reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
                 self.detach_from_parents(cell_address);
                 self.detach_from_children(cell_address);
@@ -133,7 +142,11 @@ impl Spreadsheet {
     }
 
     fn reset_value_and_children_for_cell_and_ancestors(&mut self, self_address: CellAddress) -> HashSet<CellAddress> {
-        let mut queue = vec![self_address];
+        let mut queue: Vec<_> = self.volatile_cells.iter().copied().collect();
+        if !self.volatile_cells.contains(&self_address) {
+            queue.push(self_address);
+        }
+
         let mut reset_cells = HashSet::new();
 
         while let Some(address) = queue.pop() {

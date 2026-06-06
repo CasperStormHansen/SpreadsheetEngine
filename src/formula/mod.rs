@@ -19,6 +19,9 @@ pub(crate) trait Formula {
     /// This method returns the child_rectangles that are required for any evaluation of the formula.
     /// Example: if the formula is of the form `IF(a,b,c)`, the initial child rectangles are those of `a`.
     fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle>;
+    
+    /// This method returns True if the formula should be reevaluated upon any change to the spreadsheet.
+    fn is_volatile(&self) -> bool;
 }
 
 trait WellFormedFormula: Formula {

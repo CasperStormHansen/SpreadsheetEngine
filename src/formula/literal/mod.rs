@@ -21,6 +21,10 @@ impl<T: IntoEvaluatedValue + Clone> Formula for Literal<T> {
     fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
         HashSet::new()
     }
+
+    fn is_volatile(&self) -> bool {
+        false
+    }
 }
 
 pub(super) trait DefaultParsing: FromStr + Clone {}

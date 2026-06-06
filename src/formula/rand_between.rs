@@ -57,6 +57,10 @@ impl Formula for RandBetween {
         initial_child_rectangles.extend(self.upper_bound.get_initial_child_rectangles());
         initial_child_rectangles
     }
+    
+    fn is_volatile(&self) -> bool {
+        true
+    }
 }
 
 impl WellFormedFormula for RandBetween {

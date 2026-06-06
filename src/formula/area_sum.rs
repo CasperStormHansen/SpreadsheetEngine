@@ -45,6 +45,10 @@ impl Formula for AreaSum {
     fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
         HashSet::from([self.area.clone()])
     }
+    
+    fn is_volatile(&self) -> bool {
+        false
+    }
 }
 
 impl WellFormedFormula for AreaSum {

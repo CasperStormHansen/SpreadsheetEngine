@@ -20,6 +20,10 @@ impl Formula for IllFormedFormula {
     fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
         HashSet::new()
     }
+
+    fn is_volatile(&self) -> bool {
+        false
+    }
 }
 
 impl IllFormedFormula {

@@ -30,6 +30,10 @@ impl Formula for Conditional {
     fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
         self.condition.get_initial_child_rectangles()
     }
+    
+    fn is_volatile(&self) -> bool {
+        self.condition.is_volatile() || self.true_formula.is_volatile() || self.false_formula.is_volatile()
+    }
 }
 
 fn evaluate_branch(

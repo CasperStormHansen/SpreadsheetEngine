@@ -131,3 +131,17 @@ fn randbetween_with_area_sum_bound() {
 
     assert_value!(spreadsheet, adr![0, 0], Number(1.0));
 }
+
+#[test]
+fn randbetween_is_volatile() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(adr![0, 0], &format!("randbetween({}, {})", i64::MIN, i64::MAX));
+
+    let first = spreadsheet.cell_value(adr![0, 0]).unwrap().unwrap();
+
+    spreadsheet.input_raw_formula(adr![0, 1], "1");
+
+    let second = spreadsheet.cell_value(adr![0, 0]).unwrap().unwrap();
+
+    assert_ne!(first, second);
+}

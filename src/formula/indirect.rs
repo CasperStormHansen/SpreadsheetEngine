@@ -27,6 +27,10 @@ impl Formula for Indirect {
     fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
         HashSet::new()
     }
+
+    fn is_volatile(&self) -> bool {
+        self.reference.is_volatile()
+    }
 }
 
 fn continue_evaluation_based_on_evaluated_text(spreadsheet: &Spreadsheet, text: String, child_rectangles: UsedChildRectangles) -> EvaluationResult {

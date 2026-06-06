@@ -32,6 +32,10 @@ impl Formula for CellReference {
             CellRectangle::new(self.cell_address.clone(), self.cell_address.clone()).unwrap()
         ])
     }
+
+    fn is_volatile(&self) -> bool {
+        false
+    }
 }
 
 impl WellFormedFormula for CellReference {
