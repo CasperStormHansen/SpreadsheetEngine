@@ -1,11 +1,11 @@
-use crate::EvaluatedValue;
-use crate::EvaluatedValue::Number;
 use crate::formula::literal::{IntoEvaluatedValue, Literal, DefaultParsing};
+use crate::value_types::SingleCellValue;
+use crate::value_types::SingleCellValue::Number;
 
 pub(crate) type NumberLiteral = Literal<f64>;
 
 impl IntoEvaluatedValue for f64 {
-    fn into_value(self) -> EvaluatedValue {
+    fn into_value(self) -> SingleCellValue {
         Number(self)
     }
 }

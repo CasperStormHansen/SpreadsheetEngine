@@ -1,5 +1,5 @@
 use spreadsheet_engine::CellAddress;
-use spreadsheet_engine::value_types::EvaluatedValue::*;
+use spreadsheet_engine::value_types::SingleCellValue::*;
 use spreadsheet_engine::Spreadsheet;
 
 mod common_test;

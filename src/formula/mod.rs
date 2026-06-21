@@ -10,6 +10,7 @@ use crate::formula::ill_formed_formula::IllFormedFormula;
 use crate::formula::indirect::Indirect;
 use crate::formula::literal::text_literal::TextLiteral;
 use crate::formula::rand_between::RandBetween;
+use crate::formula::dynamic_array::sequence::Sequence;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 use crate::spreadsheet::Spreadsheet;
 
@@ -53,6 +54,7 @@ pub(crate) fn parse(raw_formula: &str) -> Box<dyn Formula> {
         Conditional,
         Indirect,
         RandBetween,
+        Sequence,
     )
 }
 
@@ -64,3 +66,4 @@ mod conditional;
 mod literal;
 mod indirect;
 mod rand_between;
+mod dynamic_array;

@@ -1,16 +1,28 @@
 use std::collections::HashSet;
+use ndarray::Array2;
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 
 /// Represents the value of a [`Cell`]. A [`Cell`] has an [`EvaluatedValue`] if evaluation is not
 /// prevented by circularity.
-pub type Value = Option<EvaluatedValue>;
+pub type Value = Option<SingleCellValue>;
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum EvaluatedValue {
+pub(crate) enum EvaluatedValue {
+    SingleCellValue(SingleCellValue),
+    ArrayValue(ArrayValue),
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum SingleCellValue {
     Number(f64), // todo: To be improved. This choice means that 0.1 + 0.2 != 0.3 due to floating point precision issues.
     Boolean(bool),
     Text(String),
     Error(String),
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub(crate) struct ArrayValue {
+    pub(crate) values: Array2<SingleCellValue>,
 }
 
 /// Represents the result of attempting to evaluate a formula. If the evaluation is successful, the

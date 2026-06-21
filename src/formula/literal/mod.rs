@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 use std::str::FromStr;
-use crate::{EvaluatedValue, Spreadsheet};
+use crate::Spreadsheet;
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::formula::{Formula, WellFormedFormula};
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
-use crate::value_types::{CompletedEvaluationResult, EvaluationResult};
+use crate::value_types::{CompletedEvaluationResult, EvaluatedValue, EvaluationResult, SingleCellValue};
 
 pub(crate) struct Literal<T> {
     value: T,
@@ -12,8 +12,8 @@ pub(crate) struct Literal<T> {
 
 impl<T: IntoEvaluatedValue + Clone> Formula for Literal<T> {
     fn evaluate(&self, _spreadsheet: &Spreadsheet) -> EvaluationResult {
-        Ok(CompletedEvaluationResult(
-            self.value.clone().into_value(),
+        Ok(CompletedEvaluationResult(EvaluatedValue::SingleCellValue(
+            self.value.clone().into_value()),
             self.get_initial_child_rectangles(),
         ))
     }
@@ -36,7 +36,7 @@ impl<T: IntoEvaluatedValue + DefaultParsing> WellFormedFormula for Literal<T> {
 }
 
 trait IntoEvaluatedValue {
-    fn into_value(self) -> EvaluatedValue;
+    fn into_value(self) -> SingleCellValue;
 }
 
 pub(crate) mod number_literal;

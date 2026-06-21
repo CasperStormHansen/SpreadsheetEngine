@@ -1,9 +1,10 @@
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::formula::Formula;
-use crate::value_types::EvaluatedValue::Error;
+use crate::value_types::EvaluatedValue::SingleCellValue;
 use crate::value_types::{EvaluationResult, CompletedEvaluationResult};
 use crate::Spreadsheet;
 use std::collections::HashSet;
+use crate::value_types::SingleCellValue::Error;
 
 pub(crate) struct IllFormedFormula {
     error_message: String
@@ -11,8 +12,8 @@ pub(crate) struct IllFormedFormula {
 
 impl Formula for IllFormedFormula {
     fn evaluate(&self, _spreadsheet: &Spreadsheet) -> EvaluationResult {
-        Ok(CompletedEvaluationResult(
-            Error(self.error_message.clone()),
+        Ok(CompletedEvaluationResult(SingleCellValue(
+            Error(self.error_message.clone())),
             self.get_initial_child_rectangles()
         ))
     }

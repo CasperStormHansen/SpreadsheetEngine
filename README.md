@@ -9,9 +9,3 @@ It contains the core code for a spreadsheet app and has the following features:
 - Using dependency tracking, only the relevant parts of the spreadsheet are recalculated when a cell changes
   - Dependencies are adjusted depending on evaluated values. For example, for a formula of the form `IF(a,b,c)`, the dependencies are those of `a` plus those of `b` only if `a` evaluates to true and those of `c` only if `a` evaluates to false
 - The dependency graph is maintained with range-based indexes, avoiding the need to ever iterate over all cells
-
-## Todo
-
-- Make RandBetween volatile
-- Is better separation between dependency handling and core evaluation logic possible in the formula module?
-- Add dynamic arrays

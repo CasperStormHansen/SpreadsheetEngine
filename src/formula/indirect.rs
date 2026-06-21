@@ -3,10 +3,10 @@ use crate::formula::utils::common_parsing::parse_cell_address;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 use crate::formula::{parse, EvaluationResult, Formula, WellFormedFormula};
 use crate::value_types::{CompletedEvaluationResult, UsedChildRectangles};
-use crate::value_types::EvaluatedValue::Error;
-use crate::EvaluatedValue::{Number, Text};
+use crate::value_types::EvaluatedValue::SingleCellValue;
 use crate::{CellAddress, Spreadsheet};
 use std::collections::HashSet;
+use crate::value_types::SingleCellValue::{Error, Number, Text};
 
 pub(crate) struct Indirect {
     reference: Box<dyn Formula>,
@@ -15,10 +15,10 @@ pub(crate) struct Indirect {
 impl Formula for Indirect {
     fn evaluate(&self, spreadsheet: &Spreadsheet) -> EvaluationResult {
         match self.reference.evaluate(spreadsheet) {
-            Ok(CompletedEvaluationResult(Text(text), child_rectangles)) =>
+            Ok(CompletedEvaluationResult(SingleCellValue(Text(text)), child_rectangles)) =>
                 continue_evaluation_based_on_evaluated_text(spreadsheet, text, child_rectangles),
             Ok(CompletedEvaluationResult(_, child_rectangles)) =>
-                Ok(CompletedEvaluationResult(Error("Indirect reference is not text".to_string()), child_rectangles)),
+                Ok(CompletedEvaluationResult(SingleCellValue(Error("Indirect reference is not text".to_string())), child_rectangles)),
             Err(request_for_more_child_rectangles) =>
                 Err(request_for_more_child_rectangles),
         }
@@ -39,16 +39,16 @@ fn continue_evaluation_based_on_evaluated_text(spreadsheet: &Spreadsheet, text: 
             Some(cell) => {
                 match &cell.value {
                     Some(proper_value) =>
-                        Ok(CompletedEvaluationResult(proper_value.clone(), combine(child_rectangles, cell_address))),
+                        Ok(CompletedEvaluationResult(SingleCellValue(proper_value.clone()), combine(child_rectangles, cell_address))),
                     None =>
                         Err(combine(child_rectangles, cell_address))
                 }
             }
             None =>
-                Ok(CompletedEvaluationResult(Number(0.0), combine(child_rectangles, cell_address))),
+                Ok(CompletedEvaluationResult(SingleCellValue(Number(0.0)), combine(child_rectangles, cell_address))),
         }
     } else {
-        Ok(CompletedEvaluationResult(Error("Indirect reference is not a valid cell address".to_string()), child_rectangles))
+        Ok(CompletedEvaluationResult(SingleCellValue(Error("Indirect reference is not a valid cell address".to_string())), child_rectangles))
     }
 }
 

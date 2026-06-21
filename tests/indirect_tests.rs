@@ -2,7 +2,7 @@ mod common_test;
 
 use spreadsheet_engine::CellAddress;
 use spreadsheet_engine::Spreadsheet;
-use spreadsheet_engine::value_types::EvaluatedValue::*;
+use spreadsheet_engine::value_types::SingleCellValue::*;
 
 #[test]
 fn indirect_with_text() {

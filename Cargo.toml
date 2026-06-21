@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 interavl = "0.5.0"
+ndarray = "0.16"
 rand = "0.9"

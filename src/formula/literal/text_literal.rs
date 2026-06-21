@@ -1,13 +1,13 @@
-use crate::EvaluatedValue;
-use crate::EvaluatedValue::Text;
 use crate::formula::literal::{IntoEvaluatedValue, Literal};
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 use crate::formula::WellFormedFormula;
+use crate::value_types::SingleCellValue;
+use crate::value_types::SingleCellValue::Text;
 
 pub(crate) type TextLiteral = Literal<String>;
 
 impl IntoEvaluatedValue for String {
-    fn into_value(self) -> EvaluatedValue {
+    fn into_value(self) -> SingleCellValue {
         Text(self)
     }
 }

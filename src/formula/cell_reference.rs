@@ -2,10 +2,11 @@ use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::formula::utils::common_parsing::parse_cell_address;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 use crate::formula::{Formula, WellFormedFormula};
-use crate::value_types::EvaluatedValue::Number;
 use crate::value_types::{EvaluationResult, CompletedEvaluationResult};
 use crate::{CellAddress, Spreadsheet};
 use std::collections::HashSet;
+use crate::value_types::EvaluatedValue::SingleCellValue;
+use crate::value_types::SingleCellValue::Number;
 
 pub(crate) struct CellReference {
     cell_address: CellAddress
@@ -18,12 +19,12 @@ impl Formula for CellReference {
             Some(cell) => {
                 match &cell.value {
                     Some(proper_value) =>
-                        Ok(CompletedEvaluationResult(proper_value.clone(), child_rectangles)),
+                        Ok(CompletedEvaluationResult(SingleCellValue(proper_value.clone()), child_rectangles)),
                     None =>
                         Err(child_rectangles)
                 }
             }
-            None => Ok(CompletedEvaluationResult(Number(0.0), child_rectangles)),
+            None => Ok(CompletedEvaluationResult(SingleCellValue(Number(0.0)), child_rectangles)),
         }
     }
     

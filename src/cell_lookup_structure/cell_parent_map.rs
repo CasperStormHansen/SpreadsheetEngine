@@ -1,10 +1,10 @@
 use std::collections::HashSet;
-use std::ops::Range;
 
 use interavl::IntervalTree;
 
 use crate::cell_lookup_structure::cell_address::CellAddress;
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
+use crate::cell_lookup_structure::utils::{col_range, row_range};
 
 /// 2D lookup structure:
 /// - the outer tree indexes column intervals
@@ -73,10 +73,3 @@ impl ParentLookupTree {
     }
 }
 
-fn col_range(rectangle: &CellRectangle) -> Range<u64> {
-    u64::from(rectangle.upper_left.column)..u64::from(rectangle.lower_right.column) + 1
-}
-
-fn row_range(rectangle: &CellRectangle) -> Range<u64> {
-    u64::from(rectangle.upper_left.row)..u64::from(rectangle.lower_right.row) + 1
-}
