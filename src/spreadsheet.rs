@@ -242,29 +242,22 @@ impl Spreadsheet {
             self.filter_for_no_unevaluated_children(&reset_cells).into_iter().collect();
 
         while let Some(address) = evaluation_queue.pop() {
-            let cell = &self.cells[&address];
-            if let Independent(independent_data) = &cell.kind
-            {
-                let evaluation_result = independent_data.parsed_formula.evaluate(self);
-                match evaluation_result {
-                    Ok(CompletedEvaluationResult(value, child_rectangles)) =>
-                    {
-                        match value {
-                            SingleCellValue(single_cell_value) => {
-                                self.cells[&address].value = Some(single_cell_value);
-                                self.update_child_data(address, ChildDataUpdateType::Set(child_rectangles));
-                                evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(address));
-                            },
-                            ArrayValue(array_value) => {
-                                let right_col = u32::try_from(array_value.values.ncols()).ok()
-                                    .and_then(|cols| address.column.checked_add(cols - 1));
-                                let bottom_row = u32::try_from(array_value.values.nrows()).ok()
-                                    .and_then(|rows| address.row.checked_add(rows - 1));
-                                if right_col.is_none() || bottom_row.is_none() {
+            let evaluation_result = self.cells[&address].independent_data().parsed_formula.evaluate(self);
+            match evaluation_result {
+                Ok(CompletedEvaluationResult(value, child_rectangles)) =>
+                {
+                    match value {
+                        SingleCellValue(single_cell_value) => {
+                            self.cells[&address].value = Some(single_cell_value);
+                            self.update_child_data(address, ChildDataUpdateType::Set(child_rectangles));
+                            evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(address));
+                        },
+                        ArrayValue(array_value) => {
+                            match array_value.spill_rectangle(address) {
+                                None => {
                                     self.cells[&address].value = Some(Error("The required cells would extend beyond the edges of the spreadsheet".to_string()));
-                                } else {
-                                    let lower_right = CellAddress::new(right_col.unwrap(), bottom_row.unwrap());
-                                    let area = CellRectangle::new(address, lower_right).unwrap();
+                                }
+                                Some(area) => {
                                     if self.contains_exactly_this_cell(&area, &address) {
                                         self.spill_ownership_map.insert(address, area, ClaimStatus::Active);
                                         self.cells[&address].value = Some(array_value.values[[0, 0]].clone());
@@ -283,15 +276,14 @@ impl Spreadsheet {
                                         self.cells[&address].value = Some(Error("The required cells are not free".to_string()));
                                     }
                                 }
-                            },
-                        }
-                    }
-                    Err(extra_child_rectangles) => {
-                        self.update_child_data(address, ChildDataUpdateType::Extend(extra_child_rectangles));
+                            }
+                        },
                     }
                 }
+                Err(extra_child_rectangles) => {
+                    self.update_child_data(address, ChildDataUpdateType::Extend(extra_child_rectangles));
+                }
             }
-            else { panic!("Dependent cells should not be evaluated"); }
         }
 
         // todo: check if area has been freed for dynamic arrays
@@ -317,23 +309,9 @@ impl Spreadsheet {
         reset_cells
     }
 
-    /// Returns true if the 'cell_rectangle' contains 'cell_address' and nothing else.
-    /// Returns false if the 'cell_rectangle' contains 'cell_address' and other addresses.
-    /// Panics if the 'cell_rectangle' does not contain 'cell_address'.
-    fn contains_exactly_this_cell(&self, cell_rectangle: &CellRectangle, cell_address: &CellAddress) -> bool { // todo: Can now be simplified. That it contains itself is now guranteed.
-        let mut found = false;
-        let mut only = true;
-
-        for (addr, _) in self.cells.get_all_in_rectangle(cell_rectangle) {
-            if &addr == cell_address {
-                found = true;
-            } else {
-                only = false;
-            }
-        }
-
-        assert!(found, "A dynamic array should always assign a value to its own cell");
-        only
+    fn contains_exactly_this_cell(&self, cell_rectangle: &CellRectangle, cell_address: &CellAddress) -> bool {
+        self.cells.get_all_in_rectangle(cell_rectangle)
+            .all(|(addr, _)| &addr == cell_address)
     }
 }
 

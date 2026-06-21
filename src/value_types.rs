@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use ndarray::Array2;
+use crate::cell_lookup_structure::cell_address::CellAddress;
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 
 /// Represents the value of a [`Cell`]. A [`Cell`] has an [`SingleCellValue`] if evaluation is not
@@ -23,6 +24,18 @@ pub enum SingleCellValue {
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) struct ArrayValue {
     pub(crate) values: Array2<SingleCellValue>,
+}
+
+impl ArrayValue {
+    pub(crate) fn spill_rectangle(&self, anchor: CellAddress) -> Option<CellRectangle> {
+        let right_col = u32::try_from(self.values.ncols()).ok()
+            .and_then(|cols| cols.checked_sub(1))
+            .and_then(|offset| anchor.column.checked_add(offset))?;
+        let bottom_row = u32::try_from(self.values.nrows()).ok()
+            .and_then(|rows| rows.checked_sub(1))
+            .and_then(|offset| anchor.row.checked_add(offset))?;
+        Some(CellRectangle::new(anchor, CellAddress::new(right_col, bottom_row)).unwrap())
+    }
 }
 
 /// Represents the result of attempting to evaluate a formula. If the evaluation is successful, the
