@@ -3,4 +3,5 @@ pub(crate) mod cell_rectangle;
 pub(crate) mod cell_map;
 pub(crate) mod cell_parent_map;
 pub(crate) mod spill_ownership_map;
+pub(crate) mod evaluation_queue;
 mod utils;

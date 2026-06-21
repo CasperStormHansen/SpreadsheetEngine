@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use ndarray::Array2;
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 
-/// Represents the value of a [`Cell`]. A [`Cell`] has an [`EvaluatedValue`] if evaluation is not
+/// Represents the value of a [`Cell`]. A [`Cell`] has an [`SingleCellValue`] if evaluation is not
 /// prevented by circularity.
 pub type Value = Option<SingleCellValue>;
 

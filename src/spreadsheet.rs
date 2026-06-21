@@ -9,6 +9,7 @@ use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::cell_lookup_structure::spill_ownership_map::{ClaimStatus, SpillOwnershipMap};
 use crate::value_types::{CompletedEvaluationResult, Value};
 use crate::{formula, value_types};
+use crate::cell_lookup_structure::evaluation_queue::EvaluationQueue;
 use crate::value_types::EvaluatedValue::{ArrayValue, SingleCellValue};
 use crate::value_types::SingleCellValue::Error;
 
@@ -237,9 +238,8 @@ impl Spreadsheet {
     }
 
     fn evaluate(&mut self, reset_cells: HashSet<CellAddress>) {
-        let mut evaluation_queue = self.filter_for_no_unevaluated_children(&reset_cells);
-
-        // todo: add map from cell address to number of reevals and use
+        let mut evaluation_queue: EvaluationQueue =
+            self.filter_for_no_unevaluated_children(&reset_cells).into_iter().collect();
 
         while let Some(address) = evaluation_queue.pop() {
             let cell = &self.cells[&address];
@@ -263,26 +263,26 @@ impl Spreadsheet {
                                 if right_col.is_none() || bottom_row.is_none() {
                                     self.cells[&address].value = Some(Error("The required cells would extend beyond the edges of the spreadsheet".to_string()));
                                 } else {
-                                let lower_right = CellAddress::new(right_col.unwrap(), bottom_row.unwrap());
-                                let area = CellRectangle::new(address, lower_right).unwrap();
-                                if self.contains_exactly_this_cell(&area, &address) {
-                                    self.spill_ownership_map.insert(address, area, ClaimStatus::Active);
-                                    self.cells[&address].value = Some(array_value.values[[0, 0]].clone());
-                                    self.update_child_data(address, ChildDataUpdateType::Set(child_rectangles));
-                                    evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(address));
-                                    for row in 0..array_value.values.nrows() {
-                                        for col in 0..array_value.values.ncols() {
-                                            if row == 0 && col == 0 { continue; }
-                                            let cell_address = CellAddress::new(address.column + col as u32, address.row + row as u32);
-                                            self.create_dependent_cell(cell_address, array_value.values[[row, col]].clone());
-                                            evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(cell_address));
+                                    let lower_right = CellAddress::new(right_col.unwrap(), bottom_row.unwrap());
+                                    let area = CellRectangle::new(address, lower_right).unwrap();
+                                    if self.contains_exactly_this_cell(&area, &address) {
+                                        self.spill_ownership_map.insert(address, area, ClaimStatus::Active);
+                                        self.cells[&address].value = Some(array_value.values[[0, 0]].clone());
+                                        self.update_child_data(address, ChildDataUpdateType::Set(child_rectangles));
+                                        evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(address));
+                                        for row in 0..array_value.values.nrows() {
+                                            for col in 0..array_value.values.ncols() {
+                                                if row == 0 && col == 0 { continue; }
+                                                let cell_address = CellAddress::new(address.column + col as u32, address.row + row as u32);
+                                                self.create_dependent_cell(cell_address, array_value.values[[row, col]].clone());
+                                                evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(cell_address));
+                                            }
                                         }
+                                    } else {
+                                        self.spill_ownership_map.insert(address, area, ClaimStatus::Blocked);
+                                        self.cells[&address].value = Some(Error("The required cells are not free".to_string()));
                                     }
-                                } else {
-                                    self.spill_ownership_map.insert(address, area, ClaimStatus::Blocked);
-                                    self.cells[&address].value = Some(Error("The required cells are not free".to_string()));
                                 }
-                                } // end bounds check else
                             },
                         }
                     }
