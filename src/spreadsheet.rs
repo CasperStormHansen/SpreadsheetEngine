@@ -244,6 +244,9 @@ impl Spreadsheet {
         while let Some(address) = evaluation_queue.pop() {
             let evaluation_result = self.cells[&address].independent_data().parsed_formula.evaluate(self);
             match evaluation_result {
+                Err(extra_child_rectangles) => { // The evaluation could not be completed now because new unevaluated dependencies (children) were discovered. The cell may enter the queue again later.
+                    self.update_child_data(address, ChildDataUpdateType::Extend(extra_child_rectangles));
+                }
                 Ok(CompletedEvaluationResult(value, child_rectangles)) =>
                 {
                     match value {
@@ -254,34 +257,30 @@ impl Spreadsheet {
                         },
                         ArrayValue(array_value) => {
                             match array_value.spill_rectangle(address) {
-                                None => {
-                                    self.cells[&address].value = Some(Error("The required cells would extend beyond the edges of the spreadsheet".to_string()));
-                                }
                                 Some(area) => {
                                     if self.contains_exactly_this_cell(&area, &address) {
                                         self.spill_ownership_map.insert(address, area, ClaimStatus::Active);
-                                        self.cells[&address].value = Some(array_value.values[[0, 0]].clone());
                                         self.update_child_data(address, ChildDataUpdateType::Set(child_rectangles));
-                                        evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(address));
-                                        for row in 0..array_value.values.nrows() {
-                                            for col in 0..array_value.values.ncols() {
-                                                if row == 0 && col == 0 { continue; }
-                                                let cell_address = CellAddress::new(address.column + col as u32, address.row + row as u32);
-                                                self.create_dependent_cell(cell_address, array_value.values[[row, col]].clone());
-                                                evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(cell_address));
+                                        for ((row, col), value) in array_value.values.indexed_iter() {
+                                            let cell_address = CellAddress::new(address.column + col as u32, address.row + row as u32);
+                                            if cell_address == address {
+                                                self.cells[&address].value = Some(value.clone());
+                                            } else {
+                                                self.create_dependent_cell(cell_address, value.clone());
                                             }
+                                            evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(cell_address));
                                         }
                                     } else {
                                         self.spill_ownership_map.insert(address, area, ClaimStatus::Blocked);
                                         self.cells[&address].value = Some(Error("The required cells are not free".to_string()));
                                     }
                                 }
+                                None => {
+                                    self.cells[&address].value = Some(Error("The required cells would extend beyond the edges of the spreadsheet".to_string()));
+                                }
                             }
                         },
                     }
-                }
-                Err(extra_child_rectangles) => {
-                    self.update_child_data(address, ChildDataUpdateType::Extend(extra_child_rectangles));
                 }
             }
         }
