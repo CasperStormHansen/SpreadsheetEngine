@@ -94,19 +94,19 @@ impl SpillOwnershipMap {
             .map(|(&addr, _)| addr)
     }
 
-    pub(crate) fn get_claims_in_rectangle(&self, rectangle: &CellRectangle) -> Vec<(CellAddress, ClaimStatus)> {
-        let col_query = col_range(rectangle);
-        let row_query = row_range(rectangle);
-
-        let mut claims = Vec::new();
+    pub(crate) fn get_active_owner_for_cell(&self, cell: CellAddress) -> Option<CellAddress> {
+        let single_cell = CellRectangle::new(cell, cell).unwrap();
+        let col_query = col_range(&single_cell);
+        let row_query = row_range(&single_cell);
 
         for (_, row_tree) in self.by_rectangle.iter_overlaps(&col_query) {
             for (_, claimants) in row_tree.iter_overlaps(&row_query) {
-                claims.extend(claimants.iter().map(|(&addr, &status)| (addr, status)));
+                if let Some((&addr, _)) = claimants.iter().find(|(_, status)| **status == ClaimStatus::Active) {
+                    return Some(addr);
+                }
             }
         }
-
-        claims
+        None
     }
 }
 
@@ -158,7 +158,7 @@ mod tests {
         map.remove(&adr![0, 0]);
 
         assert_eq!(map.get_owned_rectangle(&adr![0, 0]), None);
-        assert!(map.get_claims_in_rectangle(&rect![0, 1, 0, 3]).is_empty());
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 2]), None);
     }
 
     #[test]
@@ -174,9 +174,7 @@ mod tests {
         map.set_status(&adr![0, 0], Blocked);
 
         assert_eq!(map.get_claim_status(&adr![0, 0]), Some(Blocked));
-
-        let claims = map.get_claims_in_rectangle(&rect![0, 1, 0, 3]);
-        assert_eq!(claims, vec![(adr![0, 0], Blocked)]);
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 2]), None);
     }
 
     #[test]
@@ -185,10 +183,7 @@ mod tests {
         map.insert(adr![0, 0], rect![0, 1, 0, 3], Active);
         map.insert(adr![1, 0], rect![0, 1, 0, 3], Blocked);
 
-        let claims = map.get_claims_in_rectangle(&rect![0, 1, 0, 3]);
-        assert_eq!(claims.len(), 2);
-        assert!(claims.contains(&(adr![0, 0], Active)));
-        assert!(claims.contains(&(adr![1, 0], Blocked)));
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 2]), Some(adr![0, 0]));
     }
 
     #[test]
@@ -197,10 +192,9 @@ mod tests {
         map.insert(adr![0, 0], rect![0, 0, 0, 3], Active);
         map.insert(adr![1, 0], rect![0, 2, 0, 5], Blocked);
 
-        let claims = map.get_claims_in_rectangle(&rect![0, 0, 0, 5]);
-        assert_eq!(claims.len(), 2);
-        assert!(claims.contains(&(adr![0, 0], Active)));
-        assert!(claims.contains(&(adr![1, 0], Blocked)));
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 1]), Some(adr![0, 0]));  // only in active rect
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 3]), Some(adr![0, 0]));  // in both, active wins
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 5]), None);              // only in blocked rect
     }
 
     #[test]
@@ -210,38 +204,36 @@ mod tests {
         map.insert(adr![1, 0], rect![0, 1, 0, 3], Blocked);
         map.remove(&adr![0, 0]);
 
-        let claims = map.get_claims_in_rectangle(&rect![0, 1, 0, 3]);
-        assert_eq!(claims, vec![(adr![1, 0], Blocked)]);
+        assert_eq!(map.get_claim_status(&adr![1, 0]), Some(Blocked));
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 2]), None);
     }
 
     #[test]
-    fn reverse_lookup_returns_overlapping_claims() {
+    fn two_active_claims_in_different_columns() {
         let mut map = SpillOwnershipMap::new();
         map.insert(adr![0, 0], rect![0, 1, 0, 3], Active);
         map.insert(adr![1, 0], rect![1, 1, 1, 3], Active);
 
-        let claims = map.get_claims_in_rectangle(&rect![0, 1, 1, 3]);
-        assert_eq!(claims.len(), 2);
-        assert!(claims.contains(&(adr![0, 0], Active)));
-        assert!(claims.contains(&(adr![1, 0], Active)));
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 2]), Some(adr![0, 0]));
+        assert_eq!(map.get_active_owner_for_cell(adr![1, 2]), Some(adr![1, 0]));
     }
 
     #[test]
-    fn reverse_lookup_partial_overlap() {
+    fn active_owner_not_found_outside_claimed_area() {
         let mut map = SpillOwnershipMap::new();
         map.insert(adr![0, 0], rect![0, 0, 2, 2], Active);
         map.insert(adr![1, 0], rect![3, 3, 5, 5], Active);
 
-        let claims = map.get_claims_in_rectangle(&rect![0, 0, 2, 2]);
-        assert_eq!(claims, vec![(adr![0, 0], Active)]);
+        assert_eq!(map.get_active_owner_for_cell(adr![1, 1]), Some(adr![0, 0]));
+        assert_eq!(map.get_active_owner_for_cell(adr![4, 4]), Some(adr![1, 0]));
     }
 
     #[test]
-    fn reverse_lookup_empty_when_no_overlap() {
+    fn active_owner_none_when_cell_not_claimed() {
         let mut map = SpillOwnershipMap::new();
         map.insert(adr![0, 0], rect![0, 0, 1, 1], Active);
 
-        assert!(map.get_claims_in_rectangle(&rect![5, 5, 6, 6]).is_empty());
+        assert_eq!(map.get_active_owner_for_cell(adr![5, 5]), None);
     }
 
     #[test]
@@ -250,12 +242,7 @@ mod tests {
         map.insert(adr![0, 0], rect![0, 0, 0, 2], Active);
         map.insert(adr![0, 3], rect![0, 3, 0, 5], Active);
 
-        assert_eq!(map.get_claims_in_rectangle(&rect![0, 0, 0, 2]), vec![(adr![0, 0], Active)]);
-        assert_eq!(map.get_claims_in_rectangle(&rect![0, 3, 0, 5]), vec![(adr![0, 3], Active)]);
-
-        let all = map.get_claims_in_rectangle(&rect![0, 0, 0, 5]);
-        assert_eq!(all.len(), 2);
-        assert!(all.contains(&(adr![0, 0], Active)));
-        assert!(all.contains(&(adr![0, 3], Active)));
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 1]), Some(adr![0, 0]));
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 4]), Some(adr![0, 3]));
     }
 }

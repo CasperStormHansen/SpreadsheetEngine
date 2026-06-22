@@ -124,6 +124,40 @@ fn sequence_with_cell_reference_arguments() {
 }
 
 #[test]
+fn sequence_replacing_dependent_blocks_owner_and_clears_other_dependents() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(adr![0, 0], "SEQUENCE(3,1)");
+    spreadsheet.input_raw_formula(adr![0, 1], "99");
+
+    assert_value!(spreadsheet, adr![0, 0], Error("The required cells are not free".to_string()));
+    assert_value!(spreadsheet, adr![0, 1], Number(99.0));
+    assert_empty!(spreadsheet, adr![0, 2]);
+}
+
+#[test]
+fn sequence_unblocked_after_replacement_cell_deleted() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(adr![0, 0], "SEQUENCE(3,1)");
+    spreadsheet.input_raw_formula(adr![0, 1], "99");
+    spreadsheet.input_raw_formula(adr![0, 1], "");
+
+    assert_value!(spreadsheet, adr![0, 0], Number(1.0));
+    assert_value!(spreadsheet, adr![0, 1], Number(2.0));
+    assert_value!(spreadsheet, adr![0, 2], Number(3.0));
+}
+
+#[test]
+fn sequence_replacing_last_dependent_clears_other_dependents() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(adr![0, 0], "SEQUENCE(3,1)");
+    spreadsheet.input_raw_formula(adr![0, 2], "99");
+
+    assert_value!(spreadsheet, adr![0, 0], Error("The required cells are not free".to_string()));
+    assert_empty!(spreadsheet, adr![0, 1]);
+    assert_value!(spreadsheet, adr![0, 2], Number(99.0));
+}
+
+#[test]
 fn sequence_area_gets_freed_up() {
     let mut spreadsheet = Spreadsheet::new();
     spreadsheet.input_raw_formula(adr![0, 0], "5");

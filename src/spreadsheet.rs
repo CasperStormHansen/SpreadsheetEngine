@@ -41,72 +41,80 @@ impl Spreadsheet {
 
     fn update_cell_and_structure_and_reset_values(&mut self, cell_address: CellAddress, raw_formula: &str) -> HashSet<CellAddress> {
         match self.get_cell_update_type(cell_address, raw_formula) {
-            CellUpdateType::CreateIndependentCell => {
-                let parsed_formula = formula::parse(raw_formula);
-                let is_volatile = parsed_formula.is_volatile();
-                let cell = Cell {
-                    value: None,
-                    parents: HashSet::new(),
-                    kind: Independent(IndependentData {
-                        raw_formula: raw_formula.to_string(),
-                        parsed_formula,
-                        child_rectangles: HashSet::new(),
-                        children: HashSet::new(),
-                    })
-                };
-                self.cells.insert(cell_address, cell);
-                if is_volatile {
-                    self.volatile_cells.insert(cell_address);
-                }
-                self.attach_to_parents(cell_address);
-                let reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address); // todo: move out?
-                reset_cells
-            },
-            CellUpdateType::ModifyIndependentCell(independent_data) => {
-                independent_data.raw_formula = raw_formula.to_string();
-                independent_data.parsed_formula = formula::parse(&raw_formula);
-                if independent_data.parsed_formula.is_volatile() {
-                    self.volatile_cells.insert(cell_address);
-                } else {
-                    self.volatile_cells.remove(&cell_address);
-                }
-                let reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
-                reset_cells
-            }
-            CellUpdateType::DeleteIndependentCell => {
-                self.volatile_cells.remove(&cell_address);
-                let mut reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
-                self.detach_from_parents(cell_address);
-                self.detach_from_children(cell_address);
-                self.remove_from_parent_lookup_tree(cell_address);
-                self.cells.remove(&cell_address);
-                reset_cells.remove(&cell_address);
-                reset_cells
-            },
-            CellUpdateType::KeepAbsent => HashSet::new(),
-            CellUpdateType::ReplaceDependentCell => {
-                todo!()
-            }
+            CellUpdateType::CreateIndependentCell  => self.create_independent_cell(cell_address, raw_formula),
+            CellUpdateType::ModifyIndependentCell  => self.modify_independent_cell(cell_address, raw_formula),
+            CellUpdateType::DeleteIndependentCell  => self.delete_independent_cell(cell_address),
+            CellUpdateType::KeepAbsent             => HashSet::new(),
+            CellUpdateType::ReplaceDependentCell   => self.replace_dependent_cell(cell_address, raw_formula),
         }
     }
 
-    fn get_cell_update_type(&mut self, cell_address: CellAddress, raw_formula: &str) -> CellUpdateType {
+    fn get_cell_update_type(&self, cell_address: CellAddress, raw_formula: &str) -> CellUpdateType {
         let raw_formula_has_content = !raw_formula.trim().is_empty();
         let cell_already_exists = self.cells.contains(&cell_address);
 
         match (raw_formula_has_content, cell_already_exists) {
-            (true, false) => CellUpdateType::CreateIndependentCell,
-            (false, true) => CellUpdateType::DeleteIndependentCell,
+            (true,  false) => CellUpdateType::CreateIndependentCell,
+            (false, true)  => CellUpdateType::DeleteIndependentCell,
             (false, false) => CellUpdateType::KeepAbsent,
-            (true, true) => {
-                let cell = &mut self.cells[&cell_address];
-                if let Independent(ref mut independent_data) = cell.kind {
-                    CellUpdateType::ModifyIndependentCell(independent_data)
-                } else {
-                    CellUpdateType::ReplaceDependentCell
-                }
+            (true,  true)  => match self.cells[&cell_address].kind {
+                Independent(_) => CellUpdateType::ModifyIndependentCell,
+                _              => CellUpdateType::ReplaceDependentCell,
             }
         }
+    }
+
+    fn create_independent_cell(&mut self, cell_address: CellAddress, raw_formula: &str) -> HashSet<CellAddress> {
+        let parsed_formula = formula::parse(raw_formula);
+        let is_volatile = parsed_formula.is_volatile();
+        self.cells.insert(cell_address, Cell {
+            value: None,
+            parents: HashSet::new(),
+            kind: Independent(IndependentData {
+                raw_formula: raw_formula.to_string(),
+                parsed_formula,
+                child_rectangles: HashSet::new(),
+                children: HashSet::new(),
+            })
+        });
+        if is_volatile {
+            self.volatile_cells.insert(cell_address);
+        }
+        self.attach_to_parents(cell_address);
+        self.reset_value_and_children_for_cell_and_ancestors(cell_address)
+    }
+
+    fn modify_independent_cell(&mut self, cell_address: CellAddress, raw_formula: &str) -> HashSet<CellAddress> {
+        let parsed_formula = formula::parse(raw_formula);
+        let is_volatile = parsed_formula.is_volatile();
+        let independent_data = self.cells[&cell_address].independent_data_mut();
+        independent_data.raw_formula = raw_formula.to_string();
+        independent_data.parsed_formula = parsed_formula;
+        if is_volatile {
+            self.volatile_cells.insert(cell_address);
+        } else {
+            self.volatile_cells.remove(&cell_address);
+        }
+        self.reset_value_and_children_for_cell_and_ancestors(cell_address)
+    }
+
+    fn delete_independent_cell(&mut self, cell_address: CellAddress) -> HashSet<CellAddress> {
+        self.volatile_cells.remove(&cell_address);
+        let mut reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
+        self.detach_from_parents(cell_address);
+        self.detach_from_children(cell_address);
+        self.remove_from_parent_lookup_tree(cell_address);
+        self.cells.remove(&cell_address);
+        reset_cells.remove(&cell_address);
+        reset_cells
+    }
+
+    fn replace_dependent_cell(&mut self, cell_address: CellAddress, raw_formula: &str) -> HashSet<CellAddress> {
+        let owner = self.spill_ownership_map.get_active_owner_for_cell(cell_address).unwrap();
+        let mut reset_cells = self.reset_value_and_children_for_cell_and_ancestors(owner);
+        let more_reset_cells = self.create_independent_cell(cell_address, raw_formula);
+        reset_cells.extend(more_reset_cells);
+        reset_cells
     }
 
     fn attach_to_parents(&mut self, address: CellAddress) {
@@ -335,9 +343,9 @@ impl Spreadsheet {
     }
 }
 
-enum CellUpdateType<'a> {
+enum CellUpdateType {
     CreateIndependentCell,
-    ModifyIndependentCell(&'a mut IndependentData),
+    ModifyIndependentCell,
     DeleteIndependentCell,
     KeepAbsent,
     ReplaceDependentCell,
