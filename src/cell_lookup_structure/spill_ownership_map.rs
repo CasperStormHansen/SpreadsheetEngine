@@ -88,6 +88,12 @@ impl SpillOwnershipMap {
         self.by_owner.get(owner).map(|(_, status)| *status)
     }
 
+    pub(crate) fn blocked_owners(&self) -> impl Iterator<Item = CellAddress> + '_ {
+        self.by_owner.iter()
+            .filter(|(_, (_, status))| *status == ClaimStatus::Blocked)
+            .map(|(&addr, _)| addr)
+    }
+
     pub(crate) fn get_claims_in_rectangle(&self, rectangle: &CellRectangle) -> Vec<(CellAddress, ClaimStatus)> {
         let col_query = col_range(rectangle);
         let row_query = row_range(rectangle);

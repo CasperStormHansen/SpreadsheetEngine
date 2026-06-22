@@ -35,11 +35,7 @@ impl Spreadsheet {
     }
 
     pub fn input_raw_formula(&mut self, cell_address: CellAddress, raw_formula: &str) {
-        let mut reset_cells = self.update_cell_and_structure_and_reset_values(cell_address, raw_formula);
-        let volatile: Vec<CellAddress> = self.volatile_cells.iter().copied().collect(); // todo: move into 'evaluate'?
-        for cell in volatile {
-            reset_cells.extend(self.reset_value_and_children_for_cell_and_ancestors(cell));
-        }
+        let reset_cells = self.update_cell_and_structure_and_reset_values(cell_address, raw_formula);
         self.evaluate(reset_cells);
     }
 
@@ -237,11 +233,16 @@ impl Spreadsheet {
         self.attach_to_children(address);
     }
 
-    fn evaluate(&mut self, reset_cells: HashSet<CellAddress>) {
+    fn evaluate(&mut self, mut reset_cells: HashSet<CellAddress>) {
+        let volatile: Vec<CellAddress> = self.volatile_cells.iter().copied().collect();
+        for cell in volatile {
+            reset_cells.extend(self.reset_value_and_children_for_cell_and_ancestors(cell));
+        }
+
         let mut evaluation_queue: EvaluationQueue =
             self.filter_for_no_unevaluated_children(&reset_cells).into_iter().collect();
 
-        while let Some(address) = evaluation_queue.pop() {
+        while let Some(address) = self.get_next_evaluation_address(&mut evaluation_queue) {
             let evaluation_result = self.cells[&address].independent_data().parsed_formula.evaluate(self);
             match evaluation_result {
                 Err(extra_child_rectangles) => { // The evaluation could not be completed now because new unevaluated dependencies (children) were discovered. The cell may enter the queue again later.
@@ -265,10 +266,12 @@ impl Spreadsheet {
                                             let cell_address = CellAddress::new(address.column + col as u32, address.row + row as u32);
                                             if cell_address == address {
                                                 self.cells[&address].value = Some(value.clone());
+                                                evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(address));
                                             } else {
-                                                self.create_dependent_cell(cell_address, value.clone());
+                                                let mut reset_cells = self.create_dependent_cell(cell_address, value.clone());
+                                                reset_cells.remove(&cell_address);
+                                                evaluation_queue.extend(self.filter_for_no_unevaluated_children(&reset_cells));
                                             }
-                                            evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(cell_address));
                                         }
                                     } else {
                                         self.spill_ownership_map.insert(address, area, ClaimStatus::Blocked);
@@ -284,8 +287,26 @@ impl Spreadsheet {
                 }
             }
         }
+    }
 
-        // todo: check if area has been freed for dynamic arrays
+    fn get_next_evaluation_address(&mut self, evaluation_queue: &mut EvaluationQueue) -> Option<CellAddress> {
+        if let Some(address) = evaluation_queue.pop() {
+            return Some(address);
+        }
+
+        let blocked_owners: Vec<CellAddress> = self.spill_ownership_map.blocked_owners().collect();
+        for owner in blocked_owners {
+            let Some(rectangle) = self.spill_ownership_map.get_owned_rectangle(&owner).cloned() else { continue; };
+            if self.contains_exactly_this_cell(&rectangle, &owner) {
+                let reset_cells = self.reset_value_and_children_for_cell_and_ancestors(owner);
+                evaluation_queue.extend(self.filter_for_no_unevaluated_children(&reset_cells));
+                if let Some(address) = evaluation_queue.pop() {
+                    return Some(address);
+                }
+            }
+        }
+
+        None
     }
 
     fn create_dependent_cell(&mut self, cell_address: CellAddress, value: value_types::SingleCellValue) -> HashSet<CellAddress> {

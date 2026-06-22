@@ -122,3 +122,20 @@ fn sequence_with_cell_reference_arguments() {
     assert_value!(spreadsheet, adr![0, 2], Number(5.0));
     assert_value!(spreadsheet, adr![1, 2], Number(6.0));
 }
+
+#[test]
+fn sequence_area_gets_freed_up() {
+    let mut spreadsheet = Spreadsheet::new();
+    spreadsheet.input_raw_formula(adr![0, 0], "5");
+    spreadsheet.input_raw_formula(adr![0, 1], "5");
+    spreadsheet.input_raw_formula(adr![1, 0], "SEQUENCE((0,0),(0,1))");
+    spreadsheet.input_raw_formula(adr![0, 3], "SEQUENCE(2,2)");
+    assert_value!(spreadsheet, adr![0, 3], Error("The required cells are not free".to_string()));
+
+    spreadsheet.input_raw_formula(adr![0, 0], "1");
+    spreadsheet.input_raw_formula(adr![0, 1], "1");
+    assert_value!(spreadsheet, adr![0, 3], Number(1.0));
+    assert_value!(spreadsheet, adr![1, 3], Number(2.0));
+    assert_value!(spreadsheet, adr![0, 4], Number(3.0));
+    assert_value!(spreadsheet, adr![1, 4], Number(4.0));
+}
