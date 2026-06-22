@@ -64,28 +64,8 @@ impl SpillOwnershipMap {
         }
     }
 
-    pub(crate) fn set_status(&mut self, owner: &CellAddress, status: ClaimStatus) {
-        if let Some((rectangle, current_status)) = self.by_owner.get_mut(owner) {
-            *current_status = status;
-            let col_range = col_range(rectangle);
-            let row_range = row_range(rectangle);
-
-            if let Some(row_tree) = self.by_rectangle.get_mut(&col_range) {
-                if let Some(claimants) = row_tree.get_mut(&row_range) {
-                    if let Some(s) = claimants.get_mut(owner) {
-                        *s = status;
-                    }
-                }
-            }
-        }
-    }
-
     pub(crate) fn get_owned_rectangle(&self, owner: &CellAddress) -> Option<&CellRectangle> {
         self.by_owner.get(owner).map(|(rect, _)| rect)
-    }
-
-    pub(crate) fn get_claim_status(&self, owner: &CellAddress) -> Option<ClaimStatus> {
-        self.by_owner.get(owner).map(|(_, status)| *status)
     }
 
     pub(crate) fn blocked_owners(&self) -> impl Iterator<Item = CellAddress> + '_ {
@@ -146,9 +126,8 @@ mod tests {
         map.insert(adr![0, 0], rect![0, 1, 0, 3], Active);
 
         assert_eq!(map.get_owned_rectangle(&adr![0, 0]), Some(&rect![0, 1, 0, 3]));
-        assert_eq!(map.get_claim_status(&adr![0, 0]), Some(Active));
+        assert_eq!(map.get_active_owner_for_cell(adr![0, 2]), Some(adr![0, 0]));
         assert_eq!(map.get_owned_rectangle(&adr![1, 0]), None);
-        assert_eq!(map.get_claim_status(&adr![1, 0]), None);
     }
 
     #[test]
@@ -165,16 +144,6 @@ mod tests {
     fn remove_nonexistent_is_a_no_op() {
         let mut map = SpillOwnershipMap::new();
         map.remove(&adr![5, 5]);
-    }
-
-    #[test]
-    fn set_status_updates_both_lookups() {
-        let mut map = SpillOwnershipMap::new();
-        map.insert(adr![0, 0], rect![0, 1, 0, 3], Active);
-        map.set_status(&adr![0, 0], Blocked);
-
-        assert_eq!(map.get_claim_status(&adr![0, 0]), Some(Blocked));
-        assert_eq!(map.get_active_owner_for_cell(adr![0, 2]), None);
     }
 
     #[test]
@@ -204,7 +173,7 @@ mod tests {
         map.insert(adr![1, 0], rect![0, 1, 0, 3], Blocked);
         map.remove(&adr![0, 0]);
 
-        assert_eq!(map.get_claim_status(&adr![1, 0]), Some(Blocked));
+        assert_eq!(map.get_owned_rectangle(&adr![1, 0]), Some(&rect![0, 1, 0, 3]));
         assert_eq!(map.get_active_owner_for_cell(adr![0, 2]), None);
     }
 
