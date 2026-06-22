@@ -81,7 +81,7 @@ impl Spreadsheet {
             self.volatile_cells.insert(cell_address);
         }
         self.attach_to_parents(cell_address);
-        self.reset_value_and_children_for_cell_and_ancestors(cell_address)
+        self.reset_cell_and_ancestors(cell_address)
     }
 
     fn modify_independent_cell(&mut self, cell_address: CellAddress, raw_formula: &str) -> HashSet<CellAddress> {
@@ -95,12 +95,12 @@ impl Spreadsheet {
         } else {
             self.volatile_cells.remove(&cell_address);
         }
-        self.reset_value_and_children_for_cell_and_ancestors(cell_address)
+        self.reset_cell_and_ancestors(cell_address)
     }
 
     fn delete_independent_cell(&mut self, cell_address: CellAddress) -> HashSet<CellAddress> {
         self.volatile_cells.remove(&cell_address);
-        let mut reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
+        let mut reset_cells = self.reset_cell_and_ancestors(cell_address);
         self.detach_from_parents(cell_address);
         self.detach_from_children(cell_address);
         self.remove_from_parent_lookup_tree(cell_address);
@@ -111,7 +111,7 @@ impl Spreadsheet {
 
     fn replace_dependent_cell(&mut self, cell_address: CellAddress, raw_formula: &str) -> HashSet<CellAddress> {
         let owner = self.spill_ownership_map.get_active_owner_for_cell(cell_address).unwrap();
-        let mut reset_cells = self.reset_value_and_children_for_cell_and_ancestors(owner);
+        let mut reset_cells = self.reset_cell_and_ancestors(owner);
         let more_reset_cells = self.create_independent_cell(cell_address, raw_formula);
         reset_cells.extend(more_reset_cells);
         reset_cells
@@ -173,7 +173,11 @@ impl Spreadsheet {
         }
     }
 
-    fn reset_value_and_children_for_cell_and_ancestors(&mut self, self_address: CellAddress) -> HashSet<CellAddress> {
+    // Marks a cell and all cells that (transitively) depend on it as needing re-evaluation by
+    // setting their values to None and resetting their child_rectangles to the formula's initial
+    // set. If any visited cell is an active spill owner, its dependent cells are deleted and its
+    // ownership entry is removed. Returns the set of all affected addresses.
+    fn reset_cell_and_ancestors(&mut self, self_address: CellAddress) -> HashSet<CellAddress> {
         let mut queue = vec!(self_address);
         let mut reset_cells = HashSet::new();
 
@@ -244,7 +248,7 @@ impl Spreadsheet {
     fn evaluate(&mut self, mut reset_cells: HashSet<CellAddress>) {
         let volatile: Vec<CellAddress> = self.volatile_cells.iter().copied().collect();
         for cell in volatile {
-            reset_cells.extend(self.reset_value_and_children_for_cell_and_ancestors(cell));
+            reset_cells.extend(self.reset_cell_and_ancestors(cell));
         }
 
         let mut evaluation_queue: EvaluationQueue =
@@ -267,7 +271,7 @@ impl Spreadsheet {
                         ArrayValue(array_value) => {
                             match array_value.spill_rectangle(address) {
                                 Some(area) => {
-                                    if self.contains_exactly_this_cell(&area, &address) {
+                                    if self.spill_area_is_free(&area, &address) {
                                         self.spill_ownership_map.insert(address, area, ClaimStatus::Active);
                                         self.update_child_data(address, ChildDataUpdateType::Set(child_rectangles));
                                         for ((row, col), value) in array_value.values.indexed_iter() {
@@ -276,9 +280,9 @@ impl Spreadsheet {
                                                 self.cells[&address].value = Some(value.clone());
                                                 evaluation_queue.extend(self.get_parents_with_no_unevaluated_children(address));
                                             } else {
-                                                let mut reset_cells = self.create_dependent_cell(cell_address, value.clone());
-                                                reset_cells.remove(&cell_address);
-                                                evaluation_queue.extend(self.filter_for_no_unevaluated_children(&reset_cells));
+                                                let mut spill_reset_cells = self.create_dependent_cell(cell_address, value.clone());
+                                                spill_reset_cells.remove(&cell_address);
+                                                evaluation_queue.extend(self.filter_for_no_unevaluated_children(&spill_reset_cells));
                                             }
                                         }
                                     } else {
@@ -305,8 +309,8 @@ impl Spreadsheet {
         let blocked_owners: Vec<CellAddress> = self.spill_ownership_map.blocked_owners().collect();
         for owner in blocked_owners {
             let Some(rectangle) = self.spill_ownership_map.get_owned_rectangle(&owner).cloned() else { continue; };
-            if self.contains_exactly_this_cell(&rectangle, &owner) {
-                let reset_cells = self.reset_value_and_children_for_cell_and_ancestors(owner);
+            if self.spill_area_is_free(&rectangle, &owner) {
+                let reset_cells = self.reset_cell_and_ancestors(owner);
                 evaluation_queue.extend(self.filter_for_no_unevaluated_children(&reset_cells));
                 if let Some(address) = evaluation_queue.pop() {
                     return Some(address);
@@ -324,20 +328,20 @@ impl Spreadsheet {
             parents: HashSet::new(),
         });
         self.attach_to_parents(cell_address);
-        let reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
+        let reset_cells = self.reset_cell_and_ancestors(cell_address);
         self.cells[&cell_address].value = Some(value);
         reset_cells
     }
 
     fn delete_dependent_cell(&mut self, cell_address: CellAddress) -> HashSet<CellAddress> {
-        let mut reset_cells = self.reset_value_and_children_for_cell_and_ancestors(cell_address);
+        let mut reset_cells = self.reset_cell_and_ancestors(cell_address);
         self.detach_from_parents(cell_address);
         self.cells.remove(&cell_address);
         reset_cells.remove(&cell_address);
         reset_cells
     }
 
-    fn contains_exactly_this_cell(&self, cell_rectangle: &CellRectangle, cell_address: &CellAddress) -> bool {
+    fn spill_area_is_free(&self, cell_rectangle: &CellRectangle, cell_address: &CellAddress) -> bool {
         self.cells.get_all_in_rectangle(cell_rectangle)
             .all(|(addr, _)| &addr == cell_address)
     }
