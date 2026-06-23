@@ -29,24 +29,6 @@ pub(crate) struct Cell {
     // Handling memory safety can be done centrally.
 }
 
-impl Cell {
-    pub(crate) fn independent_data(& self) -> & IndependentData {
-        if let Kind::Independent(ref data) = self.kind {
-            data
-        } else {
-            panic!("expected independent cell")
-        }
-    }
-
-    pub(crate) fn independent_data_mut(&mut self) -> &mut IndependentData {
-        if let Kind::Independent(ref mut data) = self.kind {
-            data
-        } else {
-            panic!("expected independent cell")
-        }
-    }
-}
-
 pub(crate) enum Kind {
     /// A cell that is not a spill-over from a dynamic array.
     Independent(IndependentData),
@@ -84,4 +66,65 @@ pub(crate) struct IndependentData {
     /// Unlike [`Self::child_rectangles`], this depends on which cells actually exist as a [`Cell`] object.
     /// The [`crate::spreadsheet::Spreadsheet`] module is responsible for keeping it updated.
     pub(crate) children: HashSet<CellAddress>,
+}
+
+impl Cell {
+    pub(crate) fn child_rectangles(&self) -> &HashSet<CellRectangle> {
+        &self.independent_data().child_rectangles
+    }
+
+    pub(crate) fn children(&self) -> &HashSet<CellAddress> {
+        &self.independent_data().children
+    }
+
+    pub(crate) fn parsed_formula(&self) -> &dyn Formula {
+        &*self.independent_data().parsed_formula
+    }
+
+    pub(crate) fn set_formula(&mut self, raw_formula: &str, parsed_formula: Box<dyn Formula>) {
+        let data = self.independent_data_mut();
+        data.raw_formula = raw_formula.to_string();
+        data.parsed_formula = parsed_formula;
+    }
+
+    pub(crate) fn add_child(&mut self, address: CellAddress) {
+        self.independent_data_mut().children.insert(address);
+    }
+
+    pub(crate) fn remove_child(&mut self, address: CellAddress) {
+        self.independent_data_mut().children.remove(&address);
+    }
+
+    pub(crate) fn clear_children(&mut self) {
+        self.independent_data_mut().children.clear();
+    }
+
+    pub(crate) fn set_child_rectangles(&mut self, child_rectangles: HashSet<CellRectangle>) {
+        self.independent_data_mut().child_rectangles = child_rectangles;
+    }
+
+    pub(crate) fn extend_child_rectangles(&mut self, extra: HashSet<CellRectangle>) {
+        self.independent_data_mut().child_rectangles.extend(extra);
+    }
+
+    pub(crate) fn reset_child_rectangles_to_initial(&mut self) {
+        let initial = self.independent_data().parsed_formula.get_initial_child_rectangles();
+        self.independent_data_mut().child_rectangles = initial;
+    }
+
+    fn independent_data(&self) -> &IndependentData {
+        if let Kind::Independent(ref data) = self.kind {
+            data
+        } else {
+            panic!("expected independent cell")
+        }
+    }
+
+    fn independent_data_mut(&mut self) -> &mut IndependentData {
+        if let Kind::Independent(ref mut data) = self.kind {
+            data
+        } else {
+            panic!("expected independent cell")
+        }
+    }
 }

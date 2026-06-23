@@ -87,9 +87,7 @@ impl Spreadsheet {
     fn modify_independent_cell(&mut self, cell_address: CellAddress, raw_formula: &str) -> HashSet<CellAddress> {
         let parsed_formula = formula::parse(raw_formula);
         let is_volatile = parsed_formula.is_volatile();
-        let independent_data = self.cells[&cell_address].independent_data_mut();
-        independent_data.raw_formula = raw_formula.to_string();
-        independent_data.parsed_formula = parsed_formula;
+        self.cells[&cell_address].set_formula(raw_formula, parsed_formula);
         if is_volatile {
             self.volatile_cells.insert(cell_address);
         } else {
@@ -121,7 +119,7 @@ impl Spreadsheet {
         let parent_addresses = self.parent_lookup_tree.get_all_parents(address);
         for parent_address in parent_addresses {
             self.cells[&address].parents.insert(parent_address);
-            self.cells[&parent_address].independent_data_mut().children.insert(address);
+            self.cells[&parent_address].add_child(address);
         }
     }
 
@@ -131,43 +129,42 @@ impl Spreadsheet {
 
         self.cells[&address].parents.clear();
         for parent_address in parent_addresses {
-            self.cells[&parent_address].independent_data_mut().children.remove(&address);
+            self.cells[&parent_address].remove_child(address);
         }
     }
 
     fn attach_to_children(&mut self, address: CellAddress) {
         let child_rectangles: Vec<CellRectangle> = self.cells[&address]
-            .independent_data()
-            .child_rectangles.iter().cloned().collect();
+            .child_rectangles().iter().cloned().collect();
         let child_addresses: Vec<CellAddress> = child_rectangles.iter()
             .flat_map(|r| self.cells.get_all_in_rectangle(r).map(|(addr, _)| addr))
             .collect();
 
         for child_address in child_addresses {
-            self.cells[&address].independent_data_mut().children.insert(child_address);
+            self.cells[&address].add_child(child_address);
             self.cells[&child_address].parents.insert(address);
         }
     }
 
     fn detach_from_children(&mut self, address: CellAddress) {
-        let child_addresses: Vec<CellAddress> = self.cells[&address].independent_data()
-            .children.iter().copied().collect();
+        let child_addresses: Vec<CellAddress> = self.cells[&address].children()
+            .iter().copied().collect();
 
-        self.cells[&address].independent_data_mut().children.clear();
+        self.cells[&address].clear_children();
         for child_address in child_addresses {
             self.cells[&child_address].parents.remove(&address);
         }
     }
     
     fn add_to_parent_lookup_tree(&mut self, address: CellAddress) {
-        let child_rectangles = &self.cells[&address].independent_data().child_rectangles;
+        let child_rectangles = self.cells[&address].child_rectangles();
         for child_rectangle in child_rectangles {
             self.parent_lookup_tree.insert(address, child_rectangle);
         }
     }
 
     fn remove_from_parent_lookup_tree(&mut self, address: CellAddress) {
-        let child_rectangles = &self.cells[&address].independent_data().child_rectangles;
+        let child_rectangles = self.cells[&address].child_rectangles();
         for child_rectangle in child_rectangles {
             self.parent_lookup_tree.delete(&address, child_rectangle);
         }
@@ -222,11 +219,9 @@ impl Spreadsheet {
             .collect()
     }
 
-    fn has_no_unevaluated_children(& self, address: &CellAddress) -> bool {
-        self.cells[address].independent_data().children.iter()
-            .all(|child_address| {
-                self.cells[child_address].value != None
-            })
+    fn has_no_unevaluated_children(&self, address: &CellAddress) -> bool {
+        self.cells[address].children().iter()
+            .all(|child_address| self.cells[child_address].value != None)
     }
 
     fn update_child_data(&mut self, address: CellAddress, child_update_type: ChildDataUpdateType) {
@@ -234,12 +229,9 @@ impl Spreadsheet {
         self.detach_from_children(address);
         self.remove_from_parent_lookup_tree(address);
         match child_update_type {
-            ChildDataUpdateType::Reset =>
-                self.cells[&address].independent_data_mut().child_rectangles = self.cells[&address].independent_data().parsed_formula.get_initial_child_rectangles(),
-            ChildDataUpdateType::Set(child_rectangles) =>
-                self.cells[&address].independent_data_mut().child_rectangles = child_rectangles,
-            ChildDataUpdateType::Extend(extra_child_rectangles) =>
-                self.cells[&address].independent_data_mut().child_rectangles.extend(extra_child_rectangles)
+            ChildDataUpdateType::Reset          => self.cells[&address].reset_child_rectangles_to_initial(),
+            ChildDataUpdateType::Set(rects)     => self.cells[&address].set_child_rectangles(rects),
+            ChildDataUpdateType::Extend(rects)  => self.cells[&address].extend_child_rectangles(rects),
         }
         self.add_to_parent_lookup_tree(address);
         self.attach_to_children(address);
@@ -255,7 +247,7 @@ impl Spreadsheet {
             self.filter_for_no_unevaluated_children(&reset_cells).into_iter().collect();
 
         while let Some(address) = self.get_next_evaluation_address(&mut evaluation_queue) {
-            let evaluation_result = self.cells[&address].independent_data().parsed_formula.evaluate(self);
+            let evaluation_result = self.cells[&address].parsed_formula().evaluate(self);
             match evaluation_result {
                 Err(extra_child_rectangles) => { // The evaluation could not be completed now because new unevaluated dependencies (children) were discovered. The cell may enter the queue again later.
                     self.update_child_data(address, ChildDataUpdateType::Extend(extra_child_rectangles));
