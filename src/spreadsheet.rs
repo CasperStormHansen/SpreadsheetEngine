@@ -1,8 +1,7 @@
 use std::cmp::PartialEq;
 use std::collections::HashSet;
 use crate::cell_lookup_structure::cell_map::CellMap;
-use crate::cell::{Cell, IndependentData};
-use crate::cell::Kind::{Dependent, Independent};
+use crate::cell::Cell;
 use crate::cell_lookup_structure::cell_address::CellAddress;
 use crate::cell_lookup_structure::cell_parent_map::ParentLookupTree;
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
@@ -57,9 +56,10 @@ impl Spreadsheet {
             (true,  false) => CellUpdateType::CreateIndependentCell,
             (false, true)  => CellUpdateType::DeleteIndependentCell,
             (false, false) => CellUpdateType::KeepAbsent,
-            (true,  true)  => match self.cells[&cell_address].kind {
-                Independent(_) => CellUpdateType::ModifyIndependentCell,
-                _              => CellUpdateType::ReplaceDependentCell,
+            (true,  true)  => if self.cells[&cell_address].is_independent() {
+                CellUpdateType::ModifyIndependentCell
+            } else {
+                CellUpdateType::ReplaceDependentCell
             }
         }
     }
@@ -67,16 +67,7 @@ impl Spreadsheet {
     fn create_independent_cell(&mut self, cell_address: CellAddress, raw_formula: &str) -> HashSet<CellAddress> {
         let parsed_formula = formula::parse(raw_formula);
         let is_volatile = parsed_formula.is_volatile();
-        self.cells.insert(cell_address, Cell {
-            value: None,
-            parents: HashSet::new(),
-            kind: Independent(IndependentData {
-                raw_formula: raw_formula.to_string(),
-                parsed_formula,
-                child_rectangles: HashSet::new(),
-                children: HashSet::new(),
-            })
-        });
+        self.cells.insert(cell_address, Cell::new_independent(raw_formula, parsed_formula));
         if is_volatile {
             self.volatile_cells.insert(cell_address);
         }
@@ -118,16 +109,16 @@ impl Spreadsheet {
     fn attach_to_parents(&mut self, address: CellAddress) {
         let parent_addresses = self.parent_lookup_tree.get_all_parents(address);
         for parent_address in parent_addresses {
-            self.cells[&address].parents.insert(parent_address);
+            self.cells[&address].add_parent(parent_address);
             self.cells[&parent_address].add_child(address);
         }
     }
 
     fn detach_from_parents(&mut self, address: CellAddress) {
         let parent_addresses: Vec<CellAddress> = self.cells[&address]
-            .parents.iter().copied().collect();
+            .parents().iter().copied().collect();
 
-        self.cells[&address].parents.clear();
+        self.cells[&address].clear_parents();
         for parent_address in parent_addresses {
             self.cells[&parent_address].remove_child(address);
         }
@@ -142,7 +133,7 @@ impl Spreadsheet {
 
         for child_address in child_addresses {
             self.cells[&address].add_child(child_address);
-            self.cells[&child_address].parents.insert(address);
+            self.cells[&child_address].add_parent(address);
         }
     }
 
@@ -152,7 +143,7 @@ impl Spreadsheet {
 
         self.cells[&address].clear_children();
         for child_address in child_addresses {
-            self.cells[&child_address].parents.remove(&address);
+            self.cells[&child_address].remove_parent(address);
         }
     }
     
@@ -170,22 +161,22 @@ impl Spreadsheet {
         }
     }
 
-    // Marks a cell and all cells that (transitively) depend on it as needing re-evaluation by
-    // setting their values to None and resetting their child_rectangles to the formula's initial
-    // set. If any visited cell is an active spill owner, its dependent cells are deleted and its
-    // ownership entry is removed. Returns the set of all affected addresses.
+    /// Marks a cell and all cells that (transitively) depend on it as needing re-evaluation by
+    /// setting their values to None and resetting their child_rectangles to the formula's initial
+    /// set. If any visited cell is an active spill owner, its dependent cells are deleted and its
+    /// ownership entry is removed. Returns the set of all affected addresses.
     fn reset_cell_and_ancestors(&mut self, self_address: CellAddress) -> HashSet<CellAddress> {
         let mut queue = vec!(self_address);
         let mut reset_cells = HashSet::new();
 
         while let Some(address) = queue.pop() {
             self.cells[&address].value = None;
-            if matches!(self.cells[&address].kind, Independent(_)) {
+            if self.cells[&address].is_independent() {
                 self.update_child_data(address, ChildDataUpdateType::Reset);
             }
             reset_cells.insert(address);
             queue.extend(
-                self.cells[&address].parents.iter()
+                self.cells[&address].parents().iter()
                     .filter(|parent| !reset_cells.contains(parent))
                     .copied(),
             );
@@ -213,10 +204,10 @@ impl Spreadsheet {
             .collect()
     }
 
-    fn get_parents_with_no_unevaluated_children(& self, address: CellAddress) -> Vec<CellAddress> {
-        self.cells[&address].parents.clone().into_iter()
+    fn get_parents_with_no_unevaluated_children(&self, address: CellAddress) -> Vec<CellAddress> {
+        self.cells[&address].parents().iter()
             .filter(|parent_address| self.has_no_unevaluated_children(parent_address))
-            .collect()
+            .copied().collect()
     }
 
     fn has_no_unevaluated_children(&self, address: &CellAddress) -> bool {
@@ -314,11 +305,7 @@ impl Spreadsheet {
     }
 
     fn create_dependent_cell(&mut self, cell_address: CellAddress, value: value_types::SingleCellValue) -> HashSet<CellAddress> {
-        self.cells.insert(cell_address, Cell {
-            kind: Dependent,
-            value: None,
-            parents: HashSet::new(),
-        });
+        self.cells.insert(cell_address, Cell::new_dependent());
         self.attach_to_parents(cell_address);
         let reset_cells = self.reset_cell_and_ancestors(cell_address);
         self.cells[&cell_address].value = Some(value);

@@ -9,7 +9,7 @@ use crate::formula::Formula;
 /// An empty cell is not represented in memory as a [`Cell`].
 pub(crate) struct Cell {
     /// Indicates whether the cell has a formula of its own or is spill-over from a dynamic array.
-    pub(crate) kind: Kind,
+    kind: Kind,
 
     /// The computed value of the cell.
     ///
@@ -22,7 +22,7 @@ pub(crate) struct Cell {
     /// The set of cells whose values depend directly on this cell.
     ///
     /// The [`crate::spreadsheet::Spreadsheet`] module is responsible for keeping it updated.
-    pub(crate) parents: HashSet<CellAddress>,
+    parents: HashSet<CellAddress>,
 
     // Todo: Consider using raw pointers for children and parents.
     // Advantages: More readable code, slightly faster.
@@ -69,6 +69,47 @@ pub(crate) struct IndependentData {
 }
 
 impl Cell {
+    pub(crate) fn new_independent(raw_formula: &str, parsed_formula: Box<dyn Formula>) -> Cell {
+        Cell {
+            kind: Kind::Independent(IndependentData {
+                raw_formula: raw_formula.to_string(),
+                parsed_formula,
+                child_rectangles: HashSet::new(),
+                children: HashSet::new(),
+            }),
+            value: None,
+            parents: HashSet::new(),
+        }
+    }
+
+    pub(crate) fn new_dependent() -> Cell {
+        Cell {
+            kind: Kind::Dependent,
+            value: None,
+            parents: HashSet::new(),
+        }
+    }
+
+    pub(crate) fn is_independent(&self) -> bool {
+        matches!(self.kind, Kind::Independent(_))
+    }
+
+    pub(crate) fn parents(&self) -> &HashSet<CellAddress> {
+        &self.parents
+    }
+
+    pub(crate) fn add_parent(&mut self, address: CellAddress) {
+        self.parents.insert(address);
+    }
+
+    pub(crate) fn remove_parent(&mut self, address: CellAddress) {
+        self.parents.remove(&address);
+    }
+
+    pub(crate) fn clear_parents(&mut self) {
+        self.parents.clear();
+    }
+
     pub(crate) fn child_rectangles(&self) -> &HashSet<CellRectangle> {
         &self.independent_data().child_rectangles
     }
