@@ -29,25 +29,25 @@ pub(crate) struct Cell {
     // Handling memory safety can be done centrally.
 }
 
-pub(crate) enum Kind {
+enum Kind {
     /// A cell that is not a spill-over from a dynamic array.
     Independent(IndependentData),
     /// A cell that is a spill-over from a dynamic array.
     Dependent,
 }
 
-pub(crate) struct IndependentData {
+struct IndependentData {
     /// The raw text entered by the user.
     ///
     /// This can be a formula, a literal number, or plain text.
     /// This module is responsible for setting its value.
-    pub(crate) raw_formula: String,
+    raw_formula: String,
 
     /// The parsed version of [`Self::raw_formula`].
     ///
     /// The [`crate::spreadsheet::Spreadsheet`] module is responsible for triggering a reparse when
     /// [`Self::raw_formula`] changes, delegating the actual parsing to the [`Formula`] module.
-    pub(crate) parsed_formula: Box<dyn Formula>,
+    parsed_formula: Box<dyn Formula>,
 
     /// The regions of the spreadsheet that directly influence this cell's value.
     ///
@@ -58,14 +58,14 @@ pub(crate) struct IndependentData {
     /// The [`crate::spreadsheet::Spreadsheet`] is responsible for triggering an update when
     /// [`Self::parsed_formula`] changes, delegating the actual determination of the rectangles to
     /// the [`Formula`] module.
-    pub(crate) child_rectangles: HashSet<CellRectangle>,
+    child_rectangles: HashSet<CellRectangle>,
 
     /// The set of cells that directly influence this cell's value. Equivalently: the set of cells that
     /// belong to at least one of the [`Self::child_rectangles`].
     ///
     /// Unlike [`Self::child_rectangles`], this depends on which cells actually exist as a [`Cell`] object.
     /// The [`crate::spreadsheet::Spreadsheet`] module is responsible for keeping it updated.
-    pub(crate) children: HashSet<CellAddress>,
+    children: HashSet<CellAddress>,
 }
 
 impl Cell {
