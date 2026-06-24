@@ -200,8 +200,7 @@ impl Spreadsheet {
     fn filter_for_no_unevaluated_children(&self, addresses: &HashSet<CellAddress>) -> Vec<CellAddress> {
         addresses.iter()
             .filter(|address| self.has_no_unevaluated_children(*address))
-            .copied()
-            .collect()
+            .copied().collect()
     }
 
     fn get_parents_with_no_unevaluated_children(&self, address: CellAddress) -> Vec<CellAddress> {
