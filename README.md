@@ -14,7 +14,7 @@ It contains the core code for a spreadsheet app and has the following features:
 
 The most important object types are Spreadsheet and Cell. Cells have a unique address, represented by two u32s, and the cells are collected in a spreadsheet's CellMap, which allows for efficient lookup by that address. The cells that in a spreadsheet UI are empty are not represented by a Cell object.
 
-The central properties of a Cell are its formula, which is kept in both the form of the raw string input and in parsed form, and its value. In addition, a Cell has parents and children. Cell A is the parent of Cell B, and B is the child of A, if the value of Cell A depends on the value of Cell B. Finally, a cell A has a collection of child rectangles, which represent the areas of cells — both those that are represented as a Cell object and those that are not — on which A depends. For example, if cell A has the formula `SUM(B1:C2)`, then the rectangle consisting of B1, B2, C1, and C2 is the (only) child rectangle of A, and if B1, B2, and C1 are empty, then C2 is the only child of A.
+The central properties of a Cell are its formula, which is kept in both the form of the raw string input and in parsed form, and its value. In addition, a Cell has parents and children. Cell A is the parent of Cell B, and B is the child of A, if the value of Cell A depends on the value of Cell B. Note that this naming follows the propagation direction: when a child's value changes, that change propagates up to its parents, which must then re-evaluate. Finally, a cell A has a collection of child rectangles, which represent the areas of cells — both those that are represented as a Cell object and those that are not — on which A depends. For example, if cell A has the formula `SUM(B1:C2)`, then the rectangle consisting of B1, B2, C1, and C2 is the (only) child rectangle of A, and if B1, B2, and C1 are empty, then C2 is the only child of A.
 
 The previous paragraph is not entirely accurate: Only so-called "independent cells" have all the six mentioned properties. This is because of dynamic arrays. For example, with the formula `SEQUENCE(3,1)` in cell A1, the cells A1, A2, and A3 are given the values 1, 2, and 3, respectively. A1:A3 is then the "spill area" of cell A1, A1 is the "anchor", and A2 and A3 are the "dependent cells" of A1. They have no raw formula, parsed formula, child rectangles, or children, just a value and parents. A spill area is always a rectangle, and the anchor cell is always that rectangle's top left cell.
 
@@ -50,86 +50,3 @@ The following invariants are maintained throughout the lifetime of the spreadshe
 2. ParentLookupTree mirrors ChildRectangles: The tree contains (address, rectangle) exactly when the Cell with that address is Independent and rectangle ∈ the Cells ChildRectangles. The methods add_to_parent_lookup_tree and remove_from_parent_lookup_tree are called in lockstep with every mutation to ChildRectangles.
 3. Active spill ownership is exclusive: For every Active entry (owner, rectangle), every cell in rectangle other than owner is a Dependent cell of that owner. No two Active claims overlap (enforced by a call to the method spill_area_is_free before inserting Active).
 4. Blocked claims retain no dependent cells: Blocked owners never create dependent cells; their claim is just a record that lets them re-compete if the active owner is removed.
-
-
-
-TODO: DELETE EVERYTHING BELOW
-
-
-  ---
-
-● I found no correctness errors. Here is how the file works and the invariants that make it correct.
-
-How spreadsheet.rs works
-
-Data structures
-
-The spreadsheet maintains four structures that are always kept in sync:
-
-┌─────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────┐
-│      Structure      │                                      What it tracks                                       │
-├─────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────┤
-│ cells               │ Every non-empty cell: its value, kind (Independent/Dependent), and parents                │
-├─────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────┤
-│ parent_lookup_tree  │ Spatial index: area → independent cells that declared that area in their child_rectangles │
-├─────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────┤
-│ spill_ownership_map │ Each dynamic-array cell's claim (Active or Blocked) on a spill rectangle                  │
-├─────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────┤
-│ volatile_cells      │ Independent cells that must re-evaluate on every change                                   │
-└─────────────────────┴───────────────────────────────────────────────────────────────────────────────────────────┘
-
-The child/parent relationship
-
-"Children" and "parents" are about formula dependencies, not spill ownership. An independent cell A has children = the cells that currently exist inside A's child_rectangles (the areas A's formula reads). Conversely, those
-cells list A in their parents. parent_lookup_tree is the reverse spatial index that makes it efficient to find, when a new cell is created at address P, which existing independent cells declare a rectangle containing P.
-
-Two-phase write
-
-Every input_raw_formula call proceeds in two phases:
-
-Phase 1 — Structural update (update_cell_and_structure_and_reset_values): One of five cases:
-- Create: insert the cell, attach it to any cells whose child_rectangles cover its address, then reset.
-- Modify: update raw_formula and parsed_formula in place, update volatile membership, then reset.
-- Delete: reset, then detach and remove.
-- Keep absent: no-op.
-- Replace dependent: reset the spill owner (which cascade-deletes all its dependent cells including this one), then create the new independent cell.
-
-In all cases this phase returns a HashSet<CellAddress> of cells whose values were set to None.
-
-Phase 2 — Evaluation (evaluate): first extends the reset set with all volatile cells (which are always re-evaluated), then runs a topological evaluation loop.
-
-Reset propagation
-
-reset_value_and_children_for_cell_and_ancestors is the core structural helper. It walks upward through parents links using a LIFO work queue, setting every reached cell's value to None. For each independent cell it visits, it
-also calls update_child_data(Reset), which: detaches the cell from its current children, clears its child_rectangles, sets them to the formula's initial rectangles, updates the parent lookup tree, and re-attaches any currently
-existing children. For each visited cell that is a spill owner, it removes the ownership entry and calls delete_dependent_cell on every spilled cell (which themselves propagate up through their parents).
-
-Key correctness property of this traversal: a cell is added to the work queue only if it is not already in reset_cells. Because reset_cells is updated immediately when a cell is popped, no cell is ever popped twice, so
-update_child_data is called at most once per cell per reset.
-
-Evaluation loop
-
-Cells are evaluated in dependency order using EvaluationQueue (a LIFO queue that deduplicates by address and enforces a per-cell addition limit to bound oscillating/circular cases). The initial queue contains all reset cells
-that have no children with None values — the leaves of the dependency DAG.
-
-For each evaluated cell:
-- Scalar result: value is written, then any parents whose children are now all evaluated are pushed to the queue.
-- Array result (spill area free): an Active claim is recorded, spilled values are written via create_dependent_cell for each non-owner position. Creating each dependent cell may reset parents that reference its position; those
-  parents are re-queued when their children are all ready.
-- Array result (spill area occupied): a Blocked claim is recorded, the cell receives an error value.
-
-When the queue empties, get_next_evaluation_address checks each blocked owner: if its claimed rectangle now contains no cells other than the owner itself, the owner is reset and re-evaluated (it may now successfully claim the
-area as Active).
-
-Invariants that make it correct
-
-1. Bidirectional child/parent consistency: A ∈ B.children ↔ B ∈ A.parents. Every attach/detach operation maintains both sides.
-2. parent_lookup_tree mirrors child_rectangles: The tree contains (addr, rect) exactly when cells[addr] is Independent and rect ∈ cells[addr].child_rectangles. add_to_parent_lookup_tree and remove_from_parent_lookup_tree are
-   called in lockstep with every mutation to child_rectangles.
-3. Active spill ownership is exclusive: For every Active entry (owner, rect), every cell in rect other than owner is a Dependent cell with owner ∈ its.parents. No two Active claims overlap (enforced by
-   contains_exactly_this_cell before inserting Active).
-4. Blocked claims retain no dependent cells: Blocked owners never create dependent cells; their claim is just a record that lets them re-compete if the active owner is removed.
-5. volatile_cells ⊆ Independent cells: Volatile tracking is updated on every create/modify/delete, and evaluate() always resets the full volatile set before building the queue.
-6. Post-evaluation best-effort termination: After evaluate() returns, every cell that is not part of a circular or oscillating dependency has a non-None value. Cells caught in a cycle may remain None: EvaluationQueue tracks
-   per-address addition counts and silently drops pushes once a cell has been added MAX_ADDITIONS (100) times, so the loop terminates even if some cells never satisfy their children. Those cells are left with None as the
-   observable signal that evaluation did not complete.
