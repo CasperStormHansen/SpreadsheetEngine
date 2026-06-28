@@ -1,25 +1,20 @@
-use std::collections::HashSet;
 use std::str::FromStr;
-use crate::Spreadsheet;
-use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
-use crate::formula::{Formula, WellFormedFormula};
+use crate::formula::{DataRequestAndEvaluationMethod, Formula, WellFormedFormula};
+use crate::formula::ResultOrRequest::Result;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
-use crate::value_types::{CompletedEvaluationResult, EvaluatedValue, EvaluationResult, SingleCellValue};
+use crate::value_types::{EvaluatedValue, SingleCellValue};
 
 pub(crate) struct Literal<T> {
     value: T,
 }
 
 impl<T: IntoEvaluatedValue + Clone> Formula for Literal<T> {
-    fn evaluate(&self, _spreadsheet: &Spreadsheet) -> EvaluationResult {
-        Ok(CompletedEvaluationResult(EvaluatedValue::SingleCellValue(
-            self.value.clone().into_value()),
-            self.get_initial_child_rectangles(),
-        ))
-    }
-
-    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
-        HashSet::new()
+    fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
+        DataRequestAndEvaluationMethod {
+            cell_rectangles: vec!(),
+            formulas: vec!(),
+            evaluation_method: Box::new(|_| Result(EvaluatedValue::SingleCellValue(self.value.clone().into_value()))),
+        }
     }
 
     fn is_volatile(&self) -> bool {

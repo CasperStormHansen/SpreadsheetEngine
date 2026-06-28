@@ -3,6 +3,7 @@ use crate::cell_lookup_structure::cell_address::CellAddress;
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::value_types::Value;
 use crate::formula::Formula;
+use crate::formula_evaluation::get_initial_child_rectangles;
 
 /// Represents a spreadsheet cell that has a non-empty user-entered formula.
 ///
@@ -144,12 +145,8 @@ impl Cell {
         self.independent_data_mut().child_rectangles = child_rectangles;
     }
 
-    pub(crate) fn extend_child_rectangles(&mut self, extra: HashSet<CellRectangle>) {
-        self.independent_data_mut().child_rectangles.extend(extra);
-    }
-
     pub(crate) fn reset_child_rectangles_to_initial(&mut self) {
-        let initial = self.independent_data().parsed_formula.get_initial_child_rectangles();
+        let initial = get_initial_child_rectangles(self.parsed_formula());
         self.independent_data_mut().child_rectangles = initial;
     }
 

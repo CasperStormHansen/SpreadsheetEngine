@@ -9,6 +9,7 @@ use crate::cell_lookup_structure::spill_ownership_map::{ClaimStatus, SpillOwners
 use crate::value_types::{CompletedEvaluationResult, Value};
 use crate::{formula, value_types};
 use crate::cell_lookup_structure::evaluation_queue::EvaluationQueue;
+use crate::formula_evaluation::evaluate_formula;
 use crate::value_types::EvaluatedValue::{ArrayValue, SingleCellValue};
 use crate::value_types::SingleCellValue::Error;
 
@@ -221,7 +222,6 @@ impl Spreadsheet {
         match child_update_type {
             ChildDataUpdateType::Reset          => self.cells[&address].reset_child_rectangles_to_initial(),
             ChildDataUpdateType::Set(rects)     => self.cells[&address].set_child_rectangles(rects),
-            ChildDataUpdateType::Extend(rects)  => self.cells[&address].extend_child_rectangles(rects),
         }
         self.add_to_parent_lookup_tree(address);
         self.attach_to_children(address);
@@ -237,10 +237,10 @@ impl Spreadsheet {
             self.filter_for_no_unevaluated_children(&reset_cells).into_iter().collect();
 
         while let Some(address) = self.get_next_evaluation_address(&mut evaluation_queue) {
-            let evaluation_result = self.cells[&address].parsed_formula().evaluate(self);
+            let evaluation_result = evaluate_formula(self, self.cells[&address].parsed_formula());
             match evaluation_result {
-                Err(extra_child_rectangles) => { // The evaluation could not be completed now because new unevaluated dependencies (children) were discovered. The cell may enter the queue again later.
-                    self.update_child_data(address, ChildDataUpdateType::Extend(extra_child_rectangles));
+                Err(updated_child_rectangles) => { // The evaluation could not be completed now because new unevaluated dependencies (children) were discovered. The cell may enter the queue again later.
+                    self.update_child_data(address, ChildDataUpdateType::Set(updated_child_rectangles));
                 }
                 Ok(CompletedEvaluationResult(value, child_rectangles)) =>
                 {
@@ -337,5 +337,4 @@ enum CellUpdateType {
 enum ChildDataUpdateType {
     Reset,
     Set(HashSet<CellRectangle>),
-    Extend(HashSet<CellRectangle>),
 }

@@ -7,3 +7,4 @@ pub mod value_types;
 mod formula;
 mod spreadsheet;
 mod cell_lookup_structure;
+mod formula_evaluation;

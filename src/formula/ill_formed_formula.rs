@@ -1,9 +1,6 @@
-use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
-use crate::formula::Formula;
+use crate::formula::{DataRequestAndEvaluationMethod, EvaluationData, Formula, ResultOrRequest};
+use crate::formula::ResultOrRequest::Result;
 use crate::value_types::EvaluatedValue::SingleCellValue;
-use crate::value_types::{EvaluationResult, CompletedEvaluationResult};
-use crate::Spreadsheet;
-use std::collections::HashSet;
 use crate::value_types::SingleCellValue::Error;
 
 pub(crate) struct IllFormedFormula {
@@ -11,15 +8,12 @@ pub(crate) struct IllFormedFormula {
 }
 
 impl Formula for IllFormedFormula {
-    fn evaluate(&self, _spreadsheet: &Spreadsheet) -> EvaluationResult {
-        Ok(CompletedEvaluationResult(SingleCellValue(
-            Error(self.error_message.clone())),
-            self.get_initial_child_rectangles()
-        ))
-    }
-
-    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
-        HashSet::new()
+    fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
+        DataRequestAndEvaluationMethod {
+            cell_rectangles: vec!(),
+            formulas: vec!(),
+            evaluation_method: Box::new(|data| self.evaluate(data)),
+        }
     }
 
     fn is_volatile(&self) -> bool {
@@ -29,6 +23,10 @@ impl Formula for IllFormedFormula {
 
 impl IllFormedFormula {
     pub(crate) fn new(error_message: &str) -> Self {
-        Self {error_message: error_message.to_string() } // Todo: needs improvement
+        Self { error_message: error_message.to_string() } // Todo: needs improvement
+    }
+
+    fn evaluate(&self, _evaluation_data: EvaluationData) -> ResultOrRequest<'_> {
+        Result(SingleCellValue(Error(self.error_message.clone())))
     }
 }

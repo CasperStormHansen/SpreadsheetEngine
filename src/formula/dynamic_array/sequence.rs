@@ -1,71 +1,47 @@
-use std::collections::HashSet;
 use ndarray::Array2;
-use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::formula::utils::common_parsing::SplitOnceOutsideParentheses;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
-use crate::formula::{parse, Formula, WellFormedFormula};
+use crate::formula::{parse, DataRequestAndEvaluationMethod, EvaluationData, Formula, ResultOrRequest, WellFormedFormula};
+use crate::formula::ResultOrRequest::Result;
 use crate::value_types::SingleCellValue::{Error, Number};
-use crate::value_types::{ArrayValue, CompletedEvaluationResult, EvaluatedValue, EvaluationResult};
-use crate::Spreadsheet;
+use crate::value_types::{ArrayValue, EvaluatedValue};
 
 pub(crate) struct Sequence {
     rows: Box<dyn Formula>,
     columns: Box<dyn Formula>,
 }
 
-impl Formula for Sequence { // todo: avoid code duplication
-    fn evaluate(&self, spreadsheet: &Spreadsheet) -> EvaluationResult {
-        let (rows, rows_child_rectangles) = match self.rows.evaluate(spreadsheet) {
-            Ok(CompletedEvaluationResult(evaluation_result, rows_child_rectangles)) =>
-                if let EvaluatedValue::SingleCellValue(Number(number)) = evaluation_result
-                    && let Some(rows) = (number.fract() == 0.0 && number >= 1.0).then(|| number as usize) {
-                    (rows, rows_child_rectangles)
-                } else {
-                    return Ok(CompletedEvaluationResult(EvaluatedValue::SingleCellValue(
-                        Error("rows must be a positive integer".to_string())), rows_child_rectangles))
-                },
-            Err(request_for_more_child_rectangles) =>
-                return Err(request_for_more_child_rectangles),
+impl Formula for Sequence {
+    fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
+        DataRequestAndEvaluationMethod {
+            cell_rectangles: vec!(),
+            formulas: vec!(self.rows.as_ref(), self.columns.as_ref()),
+            evaluation_method: Box::new(|data| self.evaluate(data)),
+        }
+    }
+
+    fn is_volatile(&self) -> bool {
+        false
+    }
+}
+
+impl Sequence {
+    fn evaluate(&self, evaluation_data: EvaluationData) -> ResultOrRequest<'_> {
+        let rows = match &evaluation_data.formula_to_value_map[&self.rows.as_address()] {
+            EvaluatedValue::SingleCellValue(Number(n)) if n.fract() == 0.0 && *n >= 1.0 => *n as usize,
+            _ => return Result(EvaluatedValue::SingleCellValue(Error("rows must be a positive integer".to_string()))),
         };
 
-        let (columns, columns_child_rectangles) = match self.columns.evaluate(spreadsheet) {
-            Ok(CompletedEvaluationResult(evaluation_result, columns_child_rectangles)) =>
-                if let EvaluatedValue::SingleCellValue(Number(number)) = evaluation_result
-                    && let Some(columns) = (number.fract() == 0.0 && number >= 1.0).then(|| number as usize) {
-                    (columns, columns_child_rectangles)
-                } else {
-                    let mut child_rectangles = rows_child_rectangles;
-                    child_rectangles.extend(columns_child_rectangles);
-                    return Ok(CompletedEvaluationResult(EvaluatedValue::SingleCellValue(
-                        Error("columns must be a positive integer".to_string())), child_rectangles))
-                },
-            Err(mut request_for_more_child_rectangles) => {
-                request_for_more_child_rectangles.extend(rows_child_rectangles);
-                return Err(request_for_more_child_rectangles);
-            }
+        let columns = match &evaluation_data.formula_to_value_map[&self.columns.as_address()] {
+            EvaluatedValue::SingleCellValue(Number(n)) if n.fract() == 0.0 && *n >= 1.0 => *n as usize,
+            _ => return Result(EvaluatedValue::SingleCellValue(Error("columns must be a positive integer".to_string()))),
         };
-
-        let mut child_rectangles = rows_child_rectangles;
-        child_rectangles.extend(columns_child_rectangles);
 
         let values = Array2::from_shape_fn((rows, columns), |(row, column)| {
             Number((row * columns + column + 1) as f64)
         });
 
-        Ok(CompletedEvaluationResult(
-            EvaluatedValue::ArrayValue(ArrayValue { values }),
-            child_rectangles,
-        ))
-    }
-
-    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
-        let mut child_rectangles = self.rows.get_initial_child_rectangles();
-        child_rectangles.extend(self.columns.get_initial_child_rectangles());
-        child_rectangles
-    }
-
-    fn is_volatile(&self) -> bool {
-        false
+        Result(EvaluatedValue::ArrayValue(ArrayValue { values }))
     }
 }
 

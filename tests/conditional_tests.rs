@@ -99,6 +99,26 @@ fn conditional_complex() {
 }
 
 #[test]
+fn deeply_nested_conditional_with_cell_references() {
+    let mut spreadsheet = Spreadsheet::new();
+
+    spreadsheet.input_raw_formula(adr![0, 0], "if((1,0), if((1,1), if((1,2), 10, 20), 30), 40)");
+    spreadsheet.input_raw_formula(adr![1, 0], "true");
+    spreadsheet.input_raw_formula(adr![1, 1], "true");
+    spreadsheet.input_raw_formula(adr![1, 2], "true");
+    assert_value!(spreadsheet, adr![0, 0], Number(10.0));
+
+    spreadsheet.input_raw_formula(adr![1, 2], "false");
+    assert_value!(spreadsheet, adr![0, 0], Number(20.0));
+
+    spreadsheet.input_raw_formula(adr![1, 1], "false");
+    assert_value!(spreadsheet, adr![0, 0], Number(30.0));
+
+    spreadsheet.input_raw_formula(adr![1, 0], "false");
+    assert_value!(spreadsheet, adr![0, 0], Number(40.0));
+}
+
+#[test]
 fn conditional_resetting_children() {
     let mut spreadsheet = Spreadsheet::new();
 

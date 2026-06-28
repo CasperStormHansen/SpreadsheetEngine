@@ -1,11 +1,9 @@
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::formula::utils::common_parsing::parse_cell_address;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
-use crate::formula::{Formula, WellFormedFormula};
+use crate::formula::{DataRequestAndEvaluationMethod, EvaluationData, Formula, ResultOrRequest, WellFormedFormula};
 use crate::value_types::SingleCellValue::{Boolean, Error, Number, Text};
-use crate::value_types::{EvaluationResult, CompletedEvaluationResult};
-use crate::Spreadsheet;
-use std::collections::HashSet;
+use crate::formula::ResultOrRequest::Result;
 use crate::value_types::EvaluatedValue::SingleCellValue;
 
 pub(crate) struct AreaSum {
@@ -13,42 +11,36 @@ pub(crate) struct AreaSum {
 }
 
 impl Formula for AreaSum {
-    // Todo: This can be optimized. See the todo above attach_to_children in Spreadsheet.
-    fn evaluate(&self, spreadsheet: &Spreadsheet) -> EvaluationResult {
-        let mut sum = 0.0;
-        let values = spreadsheet.cells
-            .get_all_in_rectangle(&self.area)
-            .map(|(_, cell)| &cell.value);
-        let child_rectangles = self.get_initial_child_rectangles();
-        for value in values {
-            match value {
-                Some(Number(number)) =>
-                    sum += number,
-                Some(Boolean(_)) =>
-                    return Ok(CompletedEvaluationResult(SingleCellValue(
-                        Error("Summing over area with boolean".to_string())),
-                        child_rectangles)),
-                Some(Text(_)) =>
-                    return Ok(CompletedEvaluationResult(SingleCellValue(
-                        Error("Summing over area with text".to_string())),
-                        child_rectangles)),
-                Some(Error(_)) =>
-                    return Ok(CompletedEvaluationResult(SingleCellValue(
-                        Error("Summing over area with error".to_string())),
-                        child_rectangles)),
-                None =>
-                    return Err(child_rectangles)
-            }
+    fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
+        DataRequestAndEvaluationMethod { // todo: simplify?
+            cell_rectangles: vec!(self.area.clone()),
+            formulas: vec!(),
+            evaluation_method: Box::new(|data| self.evaluate(data)),
         }
-        Ok(CompletedEvaluationResult(SingleCellValue(Number(sum)), child_rectangles))
     }
 
-    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
-        HashSet::from([self.area.clone()])
-    }
-    
     fn is_volatile(&self) -> bool {
         false
+    }
+}
+
+impl AreaSum {
+    fn evaluate(&self, evaluation_data: EvaluationData) -> ResultOrRequest<'_> {
+        let mut sum = 0.0;
+        for (_, value) in &evaluation_data.rectangle_to_address_value_map[&self.area] {
+            match value {
+                Number(number) =>
+                    sum += number, // todo: overflow/underflow handling
+                Boolean(_) =>
+                    return Result(SingleCellValue(Error("Summing over area with boolean".to_string()))),
+                Text(_) =>
+                    return Result(SingleCellValue(Error("Summing over area with text".to_string()))),
+                Error(_) =>
+                    return Result(SingleCellValue(Error("Summing over area with error".to_string()))), // todo: consider refactoring so this does not have to be handled here
+            }
+        }
+
+        Result(SingleCellValue(Number(sum)))
     }
 }
 

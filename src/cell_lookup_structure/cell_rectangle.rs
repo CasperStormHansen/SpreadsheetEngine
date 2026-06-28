@@ -13,4 +13,8 @@ impl CellRectangle {
         }
         None
     }
+
+    pub(crate) fn from_cell(address: CellAddress) -> Self {
+        CellRectangle { upper_left: address.clone(), lower_right: address }
+    }
 }

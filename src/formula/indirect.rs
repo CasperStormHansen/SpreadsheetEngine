@@ -1,11 +1,9 @@
 use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::formula::utils::common_parsing::parse_cell_address;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
-use crate::formula::{parse, EvaluationResult, Formula, WellFormedFormula};
-use crate::value_types::{CompletedEvaluationResult, UsedChildRectangles};
+use crate::formula::{parse, DataRequestAndEvaluationMethod, EvaluationData, Formula, ResultOrRequest, WellFormedFormula};
+use crate::formula::ResultOrRequest::{Request, Result};
 use crate::value_types::EvaluatedValue::SingleCellValue;
-use crate::{CellAddress, Spreadsheet};
-use std::collections::HashSet;
 use crate::value_types::SingleCellValue::{Error, Number, Text};
 
 pub(crate) struct Indirect {
@@ -13,19 +11,12 @@ pub(crate) struct Indirect {
 }
 
 impl Formula for Indirect {
-    fn evaluate(&self, spreadsheet: &Spreadsheet) -> EvaluationResult {
-        match self.reference.evaluate(spreadsheet) {
-            Ok(CompletedEvaluationResult(SingleCellValue(Text(text)), child_rectangles)) =>
-                continue_evaluation_based_on_evaluated_text(spreadsheet, text, child_rectangles),
-            Ok(CompletedEvaluationResult(_, child_rectangles)) =>
-                Ok(CompletedEvaluationResult(SingleCellValue(Error("Indirect reference is not text".to_string())), child_rectangles)),
-            Err(request_for_more_child_rectangles) =>
-                Err(request_for_more_child_rectangles),
+    fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
+        DataRequestAndEvaluationMethod {
+            cell_rectangles: vec!(),
+            formulas: vec!(self.reference.as_ref()),
+            evaluation_method: Box::new(|data| self.evaluate_initial(data)),
         }
-    }
-
-    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
-        HashSet::new()
     }
 
     fn is_volatile(&self) -> bool {
@@ -33,30 +24,31 @@ impl Formula for Indirect {
     }
 }
 
-fn continue_evaluation_based_on_evaluated_text(spreadsheet: &Spreadsheet, text: String, child_rectangles: UsedChildRectangles) -> EvaluationResult {
-    if let Some(cell_address) = parse_cell_address(&text) {
-        match spreadsheet.cells.get(&cell_address) {
-            Some(cell) => {
-                match &cell.value {
-                    Some(proper_value) =>
-                        Ok(CompletedEvaluationResult(SingleCellValue(proper_value.clone()), combine(child_rectangles, cell_address))),
-                    None =>
-                        Err(combine(child_rectangles, cell_address))
+impl Indirect {
+    fn evaluate_initial(&self, evaluation_data: EvaluationData) -> ResultOrRequest<'_> {
+        match &evaluation_data.formula_to_value_map[&self.reference.as_address()] {
+            SingleCellValue(Text(text)) => {
+                if let Some(cell_address) = parse_cell_address(text) {
+                    let rectangle = CellRectangle::from_cell(cell_address);
+                    Request(DataRequestAndEvaluationMethod {
+                        cell_rectangles: vec!(rectangle.clone()),
+                        formulas: vec!(),
+                        evaluation_method: Box::new(move |data| self.evaluate_resolved(data, &rectangle)),
+                    })
+                } else {
+                    Result(SingleCellValue(Error("Indirect reference is not a valid cell address".to_string())))
                 }
             }
-            None =>
-                Ok(CompletedEvaluationResult(SingleCellValue(Number(0.0)), combine(child_rectangles, cell_address))),
+            _ => Result(SingleCellValue(Error("Indirect reference is not text".to_string()))),
         }
-    } else {
-        Ok(CompletedEvaluationResult(SingleCellValue(Error("Indirect reference is not a valid cell address".to_string())), child_rectangles))
     }
-}
 
-fn combine(mut child_rectangles: HashSet<CellRectangle>, cell_address: CellAddress) -> HashSet<CellRectangle> {
-    child_rectangles.insert(
-        CellRectangle::new(cell_address.clone(), cell_address.clone()).unwrap()
-    );
-    child_rectangles
+    fn evaluate_resolved(&self, evaluation_data: EvaluationData, rectangle: &CellRectangle) -> ResultOrRequest<'_> {
+        match evaluation_data.rectangle_to_address_value_map[rectangle].first() {
+            Some((_, value)) => Result(SingleCellValue(value.clone())),
+            None => Result(SingleCellValue(Number(0.0))),
+        }
+    }
 }
 
 impl WellFormedFormula for Indirect {

@@ -1,11 +1,8 @@
-use crate::cell_lookup_structure::cell_rectangle::CellRectangle;
 use crate::formula::utils::common_parsing::SplitOnceOutsideParentheses;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
-use crate::formula::{parse, EvaluationResult, Formula, WellFormedFormula};
+use crate::formula::{parse, DataRequestAndEvaluationMethod, EvaluationData, Formula, ResultOrRequest, WellFormedFormula};
 use crate::value_types::EvaluatedValue::SingleCellValue;
-use crate::value_types::CompletedEvaluationResult;
-use crate::Spreadsheet;
-use std::collections::HashSet;
+use crate::formula::ResultOrRequest::{Request, Result};
 use crate::value_types::SingleCellValue::{Boolean, Error};
 
 pub(crate) struct Conditional {
@@ -15,42 +12,45 @@ pub(crate) struct Conditional {
 }
 
 impl Formula for Conditional {
-    fn evaluate(&self, spreadsheet: &Spreadsheet) -> EvaluationResult {
-        match self.condition.evaluate(spreadsheet) {
-            Ok(CompletedEvaluationResult(SingleCellValue(Boolean(true)), child_rectangles)) =>
-                evaluate_branch(self.true_formula.as_ref(), spreadsheet, child_rectangles),
-            Ok(CompletedEvaluationResult(SingleCellValue(Boolean(false)), child_rectangles)) =>
-                evaluate_branch(self.false_formula.as_ref(), spreadsheet, child_rectangles),
-            Ok(CompletedEvaluationResult(_, child_rectangles)) =>
-                Ok(CompletedEvaluationResult(SingleCellValue(Error("Condition is not boolean".to_string())), child_rectangles)),
-            Err(request_for_more_child_rectangles) =>
-                Err(request_for_more_child_rectangles),
+    fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
+        DataRequestAndEvaluationMethod { // todo: simplify?
+            cell_rectangles: vec!(),
+            formulas: vec!(self.condition.as_ref()),
+            evaluation_method: Box::new(|data| self.evaluate_initial(data)),
         }
     }
 
-    fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle> {
-        self.condition.get_initial_child_rectangles()
-    }
-    
     fn is_volatile(&self) -> bool {
         self.condition.is_volatile() || self.true_formula.is_volatile() || self.false_formula.is_volatile()
     }
 }
 
-fn evaluate_branch(
-    branch_formula: &dyn Formula,
-    spreadsheet: &Spreadsheet,
-    mut child_rectangles: HashSet<CellRectangle>
-) -> EvaluationResult {
-    match branch_formula.evaluate(spreadsheet) {
-        Ok(CompletedEvaluationResult(value, branch_child_rectangles)) => {
-            child_rectangles.extend(branch_child_rectangles);
-            Ok(CompletedEvaluationResult(value, child_rectangles))
+impl Conditional {
+    fn evaluate_initial(&self, evaluation_data: EvaluationData) -> ResultOrRequest<'_> {
+        match evaluation_data.formula_to_value_map[&self.condition.as_address()] {
+            SingleCellValue(Boolean(true)) =>
+                Request(DataRequestAndEvaluationMethod {
+                    cell_rectangles: vec!(),
+                    formulas: vec!(self.true_formula.as_ref()),
+                    evaluation_method: Box::new(|data| self.evaluate_true(data)),
+                }),
+            SingleCellValue(Boolean(false)) =>
+                Request(DataRequestAndEvaluationMethod {
+                    cell_rectangles: vec!(),
+                    formulas: vec!(self.false_formula.as_ref()),
+                    evaluation_method: Box::new(|data| self.evaluate_false(data)),
+                }),
+            _ =>
+                Result(SingleCellValue(Error("Condition is not boolean".to_string()))),
         }
-        Err(mut request_for_more_child_rectangles) => {
-            request_for_more_child_rectangles.extend(child_rectangles);
-            Err(request_for_more_child_rectangles)
-        }
+    }
+
+    fn evaluate_true(&self, evaluation_data: EvaluationData) -> ResultOrRequest<'_> {
+        Result(evaluation_data.formula_to_value_map[&self.true_formula.as_address()].clone())
+    }
+
+    fn evaluate_false(&self, evaluation_data: EvaluationData) -> ResultOrRequest<'_> {
+        Result(evaluation_data.formula_to_value_map[&self.false_formula.as_address()].clone())
     }
 }
 
