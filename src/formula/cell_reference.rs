@@ -13,11 +13,10 @@ pub(crate) struct CellReference {
 
 impl Formula for CellReference {
     fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
-        DataRequestAndEvaluationMethod {
-            cell_rectangles: vec!(CellRectangle::from_cell(self.cell_address.clone())),
-            formulas: vec!(),
-            evaluation_method: Box::new(|data| self.evaluate(data)),
-        }
+        DataRequestAndEvaluationMethod::with_rectangles(
+            vec![CellRectangle::from_cell(self.cell_address.clone())],
+            |data| self.evaluate(data),
+        )
     }
 
     fn is_volatile(&self) -> bool {

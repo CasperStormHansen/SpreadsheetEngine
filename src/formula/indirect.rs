@@ -12,11 +12,10 @@ pub(crate) struct Indirect {
 
 impl Formula for Indirect {
     fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
-        DataRequestAndEvaluationMethod {
-            cell_rectangles: vec!(),
-            formulas: vec!(self.reference.as_ref()),
-            evaluation_method: Box::new(|data| self.evaluate_initial(data)),
-        }
+        DataRequestAndEvaluationMethod::with_formulas(
+            vec![self.reference.as_ref()],
+            |data| self.evaluate_initial(data),
+        )
     }
 
     fn is_volatile(&self) -> bool {
@@ -30,11 +29,10 @@ impl Indirect {
             SingleCellValue(Text(text)) => {
                 if let Some(cell_address) = parse_cell_address(text) {
                     let rectangle = CellRectangle::from_cell(cell_address);
-                    Request(DataRequestAndEvaluationMethod {
-                        cell_rectangles: vec!(rectangle.clone()),
-                        formulas: vec!(),
-                        evaluation_method: Box::new(move |data| self.evaluate_resolved(data, &rectangle)),
-                    })
+                    Request(DataRequestAndEvaluationMethod::with_rectangles(
+                        vec![rectangle.clone()],
+                        move |data| self.evaluate_resolved(data, &rectangle),
+                    ))
                 } else {
                     Result(SingleCellValue(Error("Indirect reference is not a valid cell address".to_string())))
                 }

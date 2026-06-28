@@ -13,11 +13,10 @@ pub(crate) struct Sequence {
 
 impl Formula for Sequence {
     fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
-        DataRequestAndEvaluationMethod {
-            cell_rectangles: vec!(),
-            formulas: vec!(self.rows.as_ref(), self.columns.as_ref()),
-            evaluation_method: Box::new(|data| self.evaluate(data)),
-        }
+        DataRequestAndEvaluationMethod::with_formulas(
+            vec![self.rows.as_ref(), self.columns.as_ref()],
+            |data| self.evaluate(data),
+        )
     }
 
     fn is_volatile(&self) -> bool {

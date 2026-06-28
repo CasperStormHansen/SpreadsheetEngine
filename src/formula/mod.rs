@@ -15,12 +15,6 @@ use crate::formula::dynamic_array::sequence::Sequence;
 use crate::formula::utils::normalized_raw_formula::NormalizedRawFormula;
 
 pub(crate) trait Formula {
-    //fn evaluate(&self, spreadsheet: &Spreadsheet) -> EvaluationResult; // Todo: Delete together with implementations
-
-    /// This method returns the child_rectangles that are required for any evaluation of the formula.
-    /// Example: if the formula is of the form `IF(a,b,c)`, the initial child rectangles are those of `a`.
-    //fn get_initial_child_rectangles(&self) -> HashSet<CellRectangle>; // Todo: Delete together with implementations
-
     /// This method returns a request for the data that is required for the first attempt at evaluation
     /// of the formula and the method that does that first attempt when supplied with that data. The data
     /// can consist of the values of all cells in specified rectangles and/or the values of sub-formulas.
@@ -74,6 +68,28 @@ pub(crate) struct DataRequestAndEvaluationMethod<'a> {
     pub(crate) cell_rectangles: Vec<CellRectangle>,
     pub(crate) formulas: Vec<&'a dyn Formula>,
     pub(crate) evaluation_method: EvaluationMethod<'a>
+}
+
+impl<'a> DataRequestAndEvaluationMethod<'a> {
+    pub(crate) fn with_formulas(
+        formulas: Vec<&'a dyn Formula>,
+        evaluation_method: impl Fn(EvaluationData) -> ResultOrRequest<'a> + 'a,
+    ) -> Self {
+        Self { cell_rectangles: vec![], formulas, evaluation_method: Box::new(evaluation_method) }
+    }
+
+    pub(crate) fn with_rectangles(
+        cell_rectangles: Vec<CellRectangle>,
+        evaluation_method: impl Fn(EvaluationData) -> ResultOrRequest<'a> + 'a,
+    ) -> Self {
+        Self { cell_rectangles, formulas: vec![], evaluation_method: Box::new(evaluation_method) }
+    }
+
+    pub(crate) fn empty_request(
+        evaluation_method: impl Fn(EvaluationData) -> ResultOrRequest<'a> + 'a,
+    ) -> Self {
+        Self { cell_rectangles: vec![], formulas: vec![], evaluation_method: Box::new(evaluation_method) }
+    }
 }
 
 pub(crate) type EvaluationMethod<'a> = Box<dyn Fn(EvaluationData) -> ResultOrRequest<'a> + 'a>;

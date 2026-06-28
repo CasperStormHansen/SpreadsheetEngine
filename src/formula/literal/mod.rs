@@ -10,11 +10,9 @@ pub(crate) struct Literal<T> {
 
 impl<T: IntoEvaluatedValue + Clone> Formula for Literal<T> {
     fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
-        DataRequestAndEvaluationMethod {
-            cell_rectangles: vec!(),
-            formulas: vec!(),
-            evaluation_method: Box::new(|_| Result(EvaluatedValue::SingleCellValue(self.value.clone().into_value()))),
-        }
+        DataRequestAndEvaluationMethod::empty_request(
+            |_| Result(EvaluatedValue::SingleCellValue(self.value.clone().into_value()))
+        )
     }
 
     fn is_volatile(&self) -> bool {

@@ -9,11 +9,7 @@ pub(crate) struct IllFormedFormula {
 
 impl Formula for IllFormedFormula {
     fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
-        DataRequestAndEvaluationMethod {
-            cell_rectangles: vec!(),
-            formulas: vec!(),
-            evaluation_method: Box::new(|data| self.evaluate(data)),
-        }
+        DataRequestAndEvaluationMethod::empty_request(|data| self.evaluate(data))
     }
 
     fn is_volatile(&self) -> bool {

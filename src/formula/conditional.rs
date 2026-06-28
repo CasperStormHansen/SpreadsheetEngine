@@ -13,11 +13,10 @@ pub(crate) struct Conditional {
 
 impl Formula for Conditional {
     fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
-        DataRequestAndEvaluationMethod { // todo: simplify?
-            cell_rectangles: vec!(),
-            formulas: vec!(self.condition.as_ref()),
-            evaluation_method: Box::new(|data| self.evaluate_initial(data)),
-        }
+        DataRequestAndEvaluationMethod::with_formulas(
+            vec![self.condition.as_ref()],
+            |data| self.evaluate_initial(data),
+        )
     }
 
     fn is_volatile(&self) -> bool {
@@ -29,17 +28,15 @@ impl Conditional {
     fn evaluate_initial(&self, evaluation_data: EvaluationData) -> ResultOrRequest<'_> {
         match evaluation_data.formula_to_value_map[&self.condition.as_address()] {
             SingleCellValue(Boolean(true)) =>
-                Request(DataRequestAndEvaluationMethod {
-                    cell_rectangles: vec!(),
-                    formulas: vec!(self.true_formula.as_ref()),
-                    evaluation_method: Box::new(|data| self.evaluate_true(data)),
-                }),
+                Request(DataRequestAndEvaluationMethod::with_formulas(
+                    vec![self.true_formula.as_ref()],
+                    |data| self.evaluate_true(data),
+                )),
             SingleCellValue(Boolean(false)) =>
-                Request(DataRequestAndEvaluationMethod {
-                    cell_rectangles: vec!(),
-                    formulas: vec!(self.false_formula.as_ref()),
-                    evaluation_method: Box::new(|data| self.evaluate_false(data)),
-                }),
+                Request(DataRequestAndEvaluationMethod::with_formulas(
+                    vec![self.false_formula.as_ref()],
+                    |data| self.evaluate_false(data),
+                )),
             _ =>
                 Result(SingleCellValue(Error("Condition is not boolean".to_string()))),
         }

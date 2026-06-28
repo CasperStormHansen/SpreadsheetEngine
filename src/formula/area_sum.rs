@@ -12,11 +12,10 @@ pub(crate) struct AreaSum {
 
 impl Formula for AreaSum {
     fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
-        DataRequestAndEvaluationMethod { // todo: simplify?
-            cell_rectangles: vec!(self.area.clone()),
-            formulas: vec!(),
-            evaluation_method: Box::new(|data| self.evaluate(data)),
-        }
+        DataRequestAndEvaluationMethod::with_rectangles(
+            vec![self.area.clone()],
+            |data| self.evaluate(data),
+        )
     }
 
     fn is_volatile(&self) -> bool {

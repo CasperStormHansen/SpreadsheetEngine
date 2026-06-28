@@ -13,11 +13,10 @@ pub(crate) struct RandBetween {
 
 impl Formula for RandBetween {
     fn initial_data_request_and_evaluation_method(&self) -> DataRequestAndEvaluationMethod<'_> {
-        DataRequestAndEvaluationMethod {
-            cell_rectangles: vec!(),
-            formulas: vec!(self.lower_bound.as_ref(), self.upper_bound.as_ref()),
-            evaluation_method: Box::new(|data| self.evaluate(data)),
-        }
+        DataRequestAndEvaluationMethod::with_formulas(
+            vec![self.lower_bound.as_ref(), self.upper_bound.as_ref()],
+            |data| self.evaluate(data),
+        )
     }
 
     fn is_volatile(&self) -> bool {
